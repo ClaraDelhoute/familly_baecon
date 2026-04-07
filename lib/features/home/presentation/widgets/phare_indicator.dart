@@ -381,11 +381,9 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                         Colors.grey.shade50,
                                       ],
                                     ),
-                                    border: Border(
-                                      left: BorderSide(color: Colors.grey.shade300, width: 2.5),
-                                      right: BorderSide(color: Colors.grey.shade400, width: 2.5),
-                                      top: BorderSide(color: Colors.grey.shade200, width: 1.5),
-                                      bottom: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                      width: 2,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
@@ -444,11 +442,9 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                       bottomLeft: Radius.circular(10),
                                       bottomRight: Radius.circular(10),
                                     ),
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: Colors.black.withOpacity(0.4),
-                                        width: 2.5,
-                                      ),
+                                    border: Border.all(
+                                      color: Colors.black.withOpacity(0.4),
+                                      width: 2,
                                     ),
                                     boxShadow: [
                                       BoxShadow(

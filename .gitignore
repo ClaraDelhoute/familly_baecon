@@ -11,6 +11,53 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+vieux.jpg
 
 # IntelliJ related
 *.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+.metadata
+build/
+pubspec.lock
+
+# Ignorer toutes les plateformes sauf Android
+ios/
+macos/
+linux/
+windows/
+web/
+
+# Android - ignorer les fichiers générés
+**/android/.gradle/
+**/android/.kotlin/
+**/android/captures/
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.*
+**/android/key.properties
+**/android/app/build/
+*.jks
+*.apk
+*.aab
+
+# Gradle - fichiers générés
+.gradle/
+.kotlin/
+
+# Coverage
+coverage/
+
+# Symbols
+app.*.symbols

@@ -366,7 +366,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -525,7 +525,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );

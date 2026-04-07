@@ -304,8 +304,8 @@ class HomePage extends ConsumerWidget {
                                       ),
                                     ],
                                   ),
-                                  child: Image.asset(
-                                    'vieux.jpg',
+                                  child: SvgPicture.asset(
+                                    'assets/rene_profile.svg',
                                     fit: BoxFit.cover,
                                   ),
                                 ),

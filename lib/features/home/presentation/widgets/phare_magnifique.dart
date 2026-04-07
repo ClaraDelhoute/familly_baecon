@@ -288,19 +288,9 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
                     height: 40,
                     decoration: BoxDecoration(
                       color: const Color(0xFF0f172a),
-                      border: Border(
-                        left: BorderSide(
-                          color: Colors.grey.shade800,
-                          width: 2,
-                        ),
-                        right: BorderSide(
-                          color: Colors.grey.shade800,
-                          width: 2,
-                        ),
-                        bottom: BorderSide(
-                          color: Colors.grey.shade900,
-                          width: 3,
-                        ),
+                      border: Border.all(
+                        color: Colors.grey.shade800,
+                        width: 2,
                       ),
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(3),

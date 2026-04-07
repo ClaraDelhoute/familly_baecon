@@ -295,19 +295,9 @@ class _PhareDisplayState extends State<PhareDisplay>
                           const Color(0xFF030712),
                         ],
                       ),
-                      border: Border(
-                        left: BorderSide(
-                          color: Colors.grey.shade800,
-                          width: 1.5,
-                        ),
-                        right: BorderSide(
-                          color: Colors.grey.shade800,
-                          width: 1.5,
-                        ),
-                        bottom: BorderSide(
-                          color: Colors.grey.shade900,
-                          width: 2,
-                        ),
+                      border: Border.all(
+                        color: Colors.grey.shade800,
+                        width: 1.5,
                       ),
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(3),

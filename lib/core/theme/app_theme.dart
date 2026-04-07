@@ -43,14 +43,14 @@ static ThemeData darkTheme = ThemeData(
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: darkBgLight,
       indicatorColor: accentBlue.withOpacity(0.1),
-      iconTheme: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return const IconThemeData(color: accentBlue);
         }
         return const IconThemeData(color: textSecondary);
       }),
-      labelTextStyle: MaterialStateProperty.resolveWith((states) {
-        if (states.contains(MaterialState.selected)) {
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.selected)) {
           return const TextStyle(color: accentBlue);
         }
         return const TextStyle(color: textSecondary);
