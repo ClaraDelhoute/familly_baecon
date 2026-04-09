@@ -1,141 +1,177 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
+import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 
-class AnalysePage extends StatefulWidget {
+class AnalysePage extends ConsumerWidget {
   final Function(int)? onNavigate;
   const AnalysePage({super.key, this.onNavigate});
 
   @override
-  State<AnalysePage> createState() => _AnalysePageState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final observed = ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
+    final dailyStats = BehaviorStatsService.buildDailyStats(observed, maxDays: 28);
+    final declineMetrics = BehaviorStatsService.buildDeclineMetrics(dailyStats);
 
-class _AnalysePageState extends State<AnalysePage> {
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analyse'),
         elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none),
-            onPressed: () => widget.onNavigate?.call(3),
-            tooltip: 'Notifications',
-          ),
-          const SizedBox(width: 8),
-        ],
       ),
       body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Indicateurs de déclin',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            ...declineMetrics.map((metric) => _DeclineMetricCard(metric: metric)),
+            const SizedBox(height: 24),
+            Text(
+              'Évolution quotidienne (28 jours)',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            _SimpleTrendChart(dailyStats: dailyStats),
+            const SizedBox(height: 24),
+            Text(
+              'Résumé des tendances',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            _TrendSummaryCard(metrics: declineMetrics),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeclineMetricCard extends StatelessWidget {
+  final DeclineMetric metric;
+
+  const _DeclineMetricCard({required this.metric});
+
+  @override
+  Widget build(BuildContext context) {
+    final decline = metric.isDecline;
+    final color = decline ? AppTheme.activityRed : AppTheme.activityGreen;
+    final delta = metric.deltaPercent;
+    final deltaLabel = '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        leading: Icon(
+          decline ? Icons.trending_down_rounded : Icons.trending_up_rounded,
+          color: color,
+        ),
+        title: Text(metric.label),
+        subtitle: Text(
+          '7j: ${metric.recentAverage.toStringAsFixed(1)} ${metric.unit} • '
+          'Référence: ${metric.previousAverage.toStringAsFixed(1)} ${metric.unit}',
+        ),
+        trailing: Text(
+          deltaLabel,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SimpleTrendChart extends StatelessWidget {
+  final List<DailyBehaviorStats> dailyStats;
+
+  const _SimpleTrendChart({required this.dailyStats});
+
+  @override
+  Widget build(BuildContext context) {
+    if (dailyStats.isEmpty) {
+      return Card(
+        child: SizedBox(
+          height: 220,
+          child: Center(
+            child: Text(
+              'Pas assez de données pour afficher un graphique.',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final maxSleep = dailyStats.map((d) => d.sleepMinutes / 60).reduce((a, b) => a > b ? a : b).clamp(1, 24);
+    final maxMeals = dailyStats.map((d) => d.mealsCount.toDouble()).reduce((a, b) => a > b ? a : b).clamp(1, 6);
+    final maxOther = dailyStats.map((d) => d.otherActivitiesCount.toDouble()).reduce((a, b) => a > b ? a : b).clamp(1, 20);
+
+    return Card(
+      child: SizedBox(
+        height: 220,
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Période sélection
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Text(
-                      'Tendances 28 jours',
-                      style: Theme.of(context).textTheme.titleLarge,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    ),
-                    child: const Text(
-                      'Cette semaine',
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Placeholder pour graphique
-              Card(
-                child: Container(
-                  height: 250,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        AppTheme.accentBlue.withValues(alpha: 0.2),
-                        AppTheme.accentCyan.withValues(alpha: 0.2),
-                      ],
-                    ),
-                  ),
-                  child: Center(
+              for (final day in dailyStats.take(14))
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        Icon(
-                          Icons.show_chart,
-                          size: 48,
-                          color: AppTheme.accentBlue,
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Container(
+                              width: 4,
+                              height: 90 * ((day.sleepMinutes / 60) / maxSleep),
+                              decoration: BoxDecoration(
+                                color: AppTheme.activityGreen,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Graphique d\'activités\n(À implémenter avec fl_chart)',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 14,
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Container(
+                              width: 4,
+                              height: 60 * (day.mealsCount / maxMeals),
+                              decoration: BoxDecoration(
+                                color: AppTheme.activityOrange,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Container(
+                              width: 4,
+                              height: 50 * (day.otherActivitiesCount / maxOther),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentBlue,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              // Comparaison
-              Text(
-                'Routine vs Observé',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 12),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _ComparisonRow(
-                        label: 'Durée active moyenne',
-                        routine: '4h30',
-                        observed: '4h15',
-                        status: 'normal',
-                      ),
-                      Divider(
-                        color: AppTheme.textSecondary.withValues(alpha: 0.1),
-                      ),
-                      _ComparisonRow(
-                        label: 'Sommeil moyen',
-                        routine: '7h30',
-                        observed: '7h45',
-                        status: 'good',
-                      ),
-                      Divider(
-                        color: AppTheme.textSecondary.withValues(alpha: 0.1),
-                      ),
-                      _ComparisonRow(
-                        label: 'Temps cuisine',
-                        routine: '1h30',
-                        observed: '1h20',
-                        status: 'normal',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -144,74 +180,27 @@ class _AnalysePageState extends State<AnalysePage> {
   }
 }
 
-class _ComparisonRow extends StatelessWidget {
-  final String label;
-  final String routine;
-  final String observed;
-  final String status; // 'normal', 'good', 'warning'
+class _TrendSummaryCard extends StatelessWidget {
+  final List<DeclineMetric> metrics;
 
-  const _ComparisonRow({
-    required this.label,
-    required this.routine,
-    required this.observed,
-    required this.status,
-  });
-
-  Color _getStatusColor() {
-    switch (status) {
-      case 'good':
-        return AppTheme.activityGreen;
-      case 'warning':
-        return AppTheme.activityOrange;
-      default:
-        return AppTheme.textSecondary;
-    }
-  }
+  const _TrendSummaryCard({required this.metrics});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 14),
-            ),
+    final declining = metrics.where((m) => m.isDecline).toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Text(
+          declining.isEmpty
+              ? 'Aucun signal de déclin marqué détecté sur la période récente.'
+              : 'Signaux de déclin détectés: ${declining.map((m) => m.label).join(', ')}.',
+          style: TextStyle(
+            color: declining.isEmpty ? AppTheme.textPrimary : AppTheme.activityOrange,
+            height: 1.4,
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                routine,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getStatusColor().withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  observed,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _getStatusColor(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
 }
-

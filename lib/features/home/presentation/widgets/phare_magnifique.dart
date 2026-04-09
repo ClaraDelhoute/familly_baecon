@@ -7,11 +7,15 @@ import 'dart:math' as Math;
 class PhareMagnifique extends StatefulWidget {
   final List<Activity> expected;
   final List<Activity> observed;
+  final String? alertSeverity;
+  final bool forceGyrophare;
 
   const PhareMagnifique({
     super.key,
     required this.expected,
     required this.observed,
+    this.alertSeverity,
+    this.forceGyrophare = false,
   });
 
   @override
@@ -102,6 +106,14 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
   }
 
   Color _colorFor(ActivityStatus status) {
+    final severity = widget.alertSeverity?.toLowerCase();
+    if (severity == 'high') {
+      return const Color(0xFFEF4444);
+    }
+    if (severity == 'medium') {
+      return const Color(0xFFF59E0B);
+    }
+
     switch (status) {
       case ActivityStatus.ok:
         return const Color(0xFF10B981);
@@ -118,13 +130,82 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
     final status = _overallStatus();
     final color = _colorFor(status);
 
+    final showGyrophareAsset = widget.forceGyrophare || status != ActivityStatus.ok;
+    if (showGyrophareAsset) {
+      return Center(
+        child: Container(
+          width: 260,
+          height: 210,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: color.withValues(alpha: 0.35),
+              width: 2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.2),
+                blurRadius: 24,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.asset(
+                        'assets/animations/gyrophare.gif',
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        color: color.withValues(alpha: 0.92),
+                        colorBlendMode: BlendMode.color,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: SizedBox(
+                              width: 200,
+                              height: 200,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: SizedBox(
+                                  width: 260,
+                                  height: 320,
+                                  child: _buildLegacyLighthouse(color),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Center(
       child: SizedBox(
         width: 260,
         height: 320,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
+        child: _buildLegacyLighthouse(color),
+      ),
+    );
+  }
+
+  Widget _buildLegacyLighthouse(Color color) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
             // Aura extérieure pulsante
             AnimatedBuilder(
               animation: _pulseController,
@@ -302,9 +383,7 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
   }
 }
 

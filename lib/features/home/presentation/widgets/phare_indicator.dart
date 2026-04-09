@@ -28,8 +28,6 @@ class _PhareIndicatorState extends State<PhareIndicator>
     with TickerProviderStateMixin {
   late AnimationController _rotationController;
   late AnimationController _pulseController;
-  bool _hasShownModal = false;
-  ActivityStatus _lastStatus = ActivityStatus.ok;
 
   @override
   void initState() {
@@ -47,19 +45,6 @@ class _PhareIndicatorState extends State<PhareIndicator>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final status = _overallStatus();
       _updateAppBadge(status);
-
-      // Afficher la modal seulement si le statut change vers CRITICAL et on ne l'a pas déjà affichée
-      if (status == ActivityStatus.critical && !_hasShownModal) {
-        _hasShownModal = true;
-        _lastStatus = status;
-        if (mounted) {
-          _showPhareModal(context);
-        }
-      } else if (status != ActivityStatus.critical) {
-        // Réinitialiser le flag si le statut n'est plus critique
-        _hasShownModal = false;
-      }
-      _lastStatus = status;
     });
   }
 

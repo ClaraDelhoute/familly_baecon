@@ -5,6 +5,7 @@ import 'package:familly_baecon/features/splash/presentation/views/splash_screen.
 import 'package:familly_baecon/features/home/presentation/views/home_page.dart';
 import 'package:familly_baecon/features/journal/presentation/views/journal_page.dart';
 import 'package:familly_baecon/features/analyse/presentation/views/analyse_page.dart';
+import 'package:familly_baecon/features/anomalies/presentation/views/anomalies_page.dart';
 
 void main() {
   runApp(const ProviderScope(child: MyApp()));
@@ -41,6 +42,7 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
     HomePage(onNavigate: _navigateTo),
     const JournalPage(),
     const AnalysePage(),
+    const AnomaliesPage(),
   ];
 
   void _navigateTo(int index) {
@@ -72,6 +74,10 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
           NavigationDestination(
             icon: Icon(Icons.show_chart),
             label: 'Analyse',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.warning_amber_rounded),
+            label: 'Anomalies',
           ),
         ],
       ),
