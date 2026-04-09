@@ -2,10 +2,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
+import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/profile/presentation/views/profile_page.dart';
 import 'package:familly_baecon/features/alertes/presentation/views/alertes_page.dart';
+import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_indicator.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
@@ -17,7 +21,8 @@ import '../../domain/entities/activity.dart';
 // Mode test : Change la valeur pour tester les différents cas
 enum TestMode { real, ok, warning, critical }
 enum ActivityStatus { ok, warning, critical }
-final testModeProvider = StateProvider<TestMode>((ref) => TestMode.ok); // 🔧 Défaut = OK (phare VERT)
+final testModeProvider = StateProvider<TestMode>((ref) => TestMode.real);
+final lastPopupAlertIdProvider = StateProvider<String?>((ref) => null);
 
 // Provider pour les activités observées - MODE TEST
 final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
@@ -27,7 +32,7 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
   switch (mode) {
     case TestMode.real:
       // Données réelles depuis le provider normal
-      return ref.watch(observedActivitiesProvider);
+      return ref.watch(liveObservedActivitiesProvider).valueOrNull ?? ref.watch(observedActivitiesProvider);
 
     case TestMode.ok:
       // Cas OK : 🟢 Toutes les activités correspondent PARFAITEMENT (>85%)
@@ -241,11 +246,27 @@ class HomePage extends ConsumerWidget {
     // Utiliser les providers de test au lieu des vrais providers
     final observed = ref.watch(testObservedActivitiesProvider);
     final expected = ref.watch(testExpectedActivitiesProvider);
+    final observedFromBackend = ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const <Activity>[];
     final testMode = ref.watch(testModeProvider);
+    ref.watch(liveAlertsProvider);
 
-    // Dernière activité observée
-    final lastActivity = observed.isNotEmpty
-        ? observed.reduce((a, b) => a.startAt.isAfter(b.startAt) ? a : b)
+    ref.listen(liveAlertsProvider, (previous, next) {
+      final alerts = next.valueOrNull;
+      if (alerts == null || alerts.isEmpty) return;
+      final latest = alerts.first;
+      final lastShown = ref.read(lastPopupAlertIdProvider);
+      if (latest.id == lastShown) return;
+      ref.read(lastPopupAlertIdProvider.notifier).state = latest.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        _showRealtimeAlertDialog(context, ref, latest, expected, observed);
+      });
+    });
+
+    // Dernière activité observée (priorité aux données backend)
+    final observedForLastActivity = observedFromBackend.isNotEmpty ? observedFromBackend : observed;
+    final lastActivity = observedForLastActivity.isNotEmpty
+        ? observedForLastActivity.reduce((a, b) => a.startAt.isAfter(b.startAt) ? a : b)
         : null;
 
     // 3 dernières activités
@@ -371,12 +392,12 @@ class HomePage extends ConsumerWidget {
                                         ),
                                         const SizedBox(width: 6),
                                         Flexible(
-                                          child: Text(
+                                         child: Text(
                                             _formatActivityStatus(lastActivity),
                                             style: const TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 15,
                                               color: Colors.white,
-                                              fontWeight: FontWeight.w500,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -608,7 +629,7 @@ class HomePage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 14),
                   // Stats en cartes individuelles
-                  _buildDailySummaryStats(observed),
+                  _buildDailySummaryStats(observedForLastActivity),
                   const SizedBox(height: 32),
 
                   // === PLAN DU LOGEMENT (AMÉLIORÉ) ===
@@ -673,50 +694,37 @@ class HomePage extends ConsumerWidget {
 
   /// Construire le résumé du jour avec des stats pertinentes
   Widget _buildDailySummaryStats(List<Activity> observed) {
-    // Compter les repas pris
-    int mealsTaken = 0;
-    const int expectedMeals = 3; // Petit-déjeuner, Déjeuner, Dîner
-
-    for (final activity in observed) {
-      final type = activity.type.toLowerCase();
-      final room = (activity.room ?? '').toLowerCase();
-      if (type.contains('repas') || type.contains('meal') ||
-          type.contains('déjeuner') || type.contains('petit-déjeuner') || type.contains('dîner') ||
-          room.contains('cuisine') || room.contains('salle à manger')) {
-        mealsTaken++;
-      }
-    }
-
-    // Calculer le sommeil total
-    int sleepMinutes = 0;
-    for (final activity in observed) {
-      final type = activity.type.toLowerCase();
-      final room = (activity.room ?? '').toLowerCase();
-      if (type.contains('sleep') || type.contains('sommeil') || room.contains('chambre') || room.contains('lit')) {
-        sleepMinutes += (activity.durationMin ?? 0);
-      }
-    }
-    final sleepHours = (sleepMinutes / 60).toStringAsFixed(1);
-
-    // Trouver la dernière sortie
-    String lastOutingTime = 'N/A';
-    for (int i = observed.length - 1; i >= 0; i--) {
-      final activity = observed[i];
-      final type = activity.type.toLowerCase();
-      final room = (activity.room ?? '').toLowerCase();
-      if (type.contains('sortie') || type.contains('outside') || type.contains('déplacement') ||
-          room.contains('extérieur') || room.contains('outside')) {
-        lastOutingTime = '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
-        break;
-      }
-    }
+    final dayStats = BehaviorStatsService.summarizeLatestDay(observed);
+    const expectedMeals = 3;
+    final sleepHours = (dayStats.sleepMinutes / 60).toStringAsFixed(1);
+    final latestOther = observed.isEmpty
+        ? null
+        : observed
+            .where((activity) {
+              final type = activity.type.toLowerCase();
+              return !(type.contains('sleep') ||
+                  type.contains('sommeil') ||
+                  type.contains('petit_dejeuner') ||
+                  type.contains('petit-déjeuner') ||
+                  type.contains('dejeuner') ||
+                  type.contains('déjeuner') ||
+                  type.contains('souper') ||
+                  type.contains('repas'));
+            })
+            .fold<Activity?>(
+              null,
+              (prev, current) => prev == null || current.startAt.isAfter(prev.startAt) ? current : prev,
+            );
+    final latestOtherTime = latestOther == null
+        ? 'N/A'
+        : '${latestOther.startAt.hour.toString().padLeft(2, '0')}:${latestOther.startAt.minute.toString().padLeft(2, '0')}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _StatCard(
           label: 'Repas pris',
-          value: '$mealsTaken/$expectedMeals',
+          value: '${dayStats.mealsCount}/$expectedMeals',
           icon: Icons.restaurant,
           color: AppTheme.activityOrange,
           flex: 1,
@@ -731,8 +739,8 @@ class HomePage extends ConsumerWidget {
         ),
         const SizedBox(width: 10),
         _StatCard(
-          label: 'Dernière sortie',
-          value: lastOutingTime,
+          label: 'Dernière activité',
+          value: latestOtherTime,
           icon: Icons.exit_to_app,
           color: AppTheme.accentBlue,
           flex: 1,
@@ -942,8 +950,8 @@ class HomePage extends ConsumerWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
-                  if (status != ActivityStatus.ok)
-                    Padding(
+                    if (status != ActivityStatus.ok)
+                      Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Text(
                         'Consultez les détails pour comprendre les anomalies détectées',
@@ -953,6 +961,32 @@ class HomePage extends ConsumerWidget {
                           fontStyle: FontStyle.italic,
                         ),
                         textAlign: TextAlign.center,
+                      ),
+                      ),
+                  if (status != ActivityStatus.ok)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(dialogContext);
+                          final anomalies = await ProviderScope.containerOf(context, listen: false)
+                              .read(liveAnomaliesProvider.future);
+                          final latestId = anomalies.isNotEmpty ? anomalies.first.id : null;
+                          if (latestId != null) {
+                            ProviderScope.containerOf(context, listen: false)
+                                .read(focusedAnomalyIdProvider.notifier)
+                                .state = latestId;
+                          }
+                          onNavigate?.call(3);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.activityOrange,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        ),
+                        child: const Text(
+                          'Voir l’anomalie',
+                          style: TextStyle(color: Colors.white),
+                        ),
                       ),
                     ),
                   ElevatedButton(
@@ -973,6 +1007,132 @@ class HomePage extends ConsumerWidget {
         );
       },
     );
+  }
+
+  void _showRealtimeAlertDialog(
+    BuildContext context,
+    WidgetRef ref,
+    AlertItem alert,
+    List<Activity> expected,
+    List<Activity> observed,
+  ) {
+    final isHigh = alert.severity == 'high';
+    final accentColor = isHigh ? AppTheme.activityRed : AppTheme.activityOrange;
+    final priorityText = isHigh ? 'Priorité haute' : 'Priorité moyenne';
+    final icon = isHigh ? Icons.priority_high_rounded : Icons.warning_amber_rounded;
+    final typeLabel = _anomalyLabel(alert.anomalyType);
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.75),
+      builder: (dialogContext) {
+        return Center(
+          child: SingleChildScrollView(
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              contentPadding: EdgeInsets.zero,
+              content: Container(
+                width: MediaQuery.of(context).size.width * 0.84,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(icon, color: accentColor, size: 24),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Anomalie détectée',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '$priorityText • $typeLabel',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: accentColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      alert.description,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 210,
+                      child: PhareMagnifique(
+                        expected: expected,
+                        observed: observed,
+                        alertSeverity: alert.severity,
+                        forceGyrophare: true,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Plus tard'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(dialogContext);
+                              final anomalies = await ref.read(liveAnomaliesProvider.future);
+                              if (!context.mounted) return;
+                              final latestId = anomalies.isNotEmpty ? anomalies.first.id : null;
+                              if (latestId != null) {
+                                ref.read(focusedAnomalyIdProvider.notifier).state = latestId;
+                              }
+                              onNavigate?.call(3);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                            ),
+                            child: const Text('Voir l’anomalie'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _anomalyLabel(String anomalyType) {
+    return switch (anomalyType) {
+      'missing' => 'Activité manquante',
+      'timing' => 'Horaire inhabituel',
+      'duration_short' => 'Durée courte',
+      'duration_long' => 'Durée longue',
+      'freq_high' => 'Fréquence élevée',
+      'freq_low' => 'Fréquence faible',
+      _ => anomalyType,
+    };
   }
 
   /// Calculer le statut d'une activité

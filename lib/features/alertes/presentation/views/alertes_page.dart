@@ -1,32 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 
-class AlertesPage extends StatelessWidget {
+class AlertesPage extends ConsumerWidget {
   const AlertesPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Données factices d'alertes
-    final alerts = [
-      {
-        'title': 'Activité inhabituelle',
-        'description': 'L\'activité "Ordinateur" a dépassé 2h30',
-        'severity': 'warning',
-        'time': 'Il y a 15 min',
-      },
-      {
-        'title': 'Absence détectée',
-        'description': 'Aucune activité depuis 45 minutes',
-        'severity': 'error',
-        'time': 'Il y a 10 min',
-      },
-      {
-        'title': 'Retour à la normale',
-        'description': 'Activité "Cuisine" détectée',
-        'severity': 'success',
-        'time': 'Il y a 5 min',
-      },
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final alertsAsync = ref.watch(liveAlertsProvider);
+    final alerts = alertsAsync.valueOrNull ?? const [];
 
     return Scaffold(
       appBar: AppBar(
@@ -59,11 +42,8 @@ class AlertesPage extends StatelessWidget {
               itemCount: alerts.length,
               itemBuilder: (context, index) {
                 final alert = alerts[index];
-                final color = alert['severity'] == 'error'
-                    ? AppTheme.activityRed
-                    : alert['severity'] == 'warning'
-                        ? AppTheme.activityOrange
-                        : AppTheme.activityGreen;
+                final isHigh = alert.severity == 'high';
+                final color = isHigh ? AppTheme.activityRed : AppTheme.activityOrange;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -88,18 +68,14 @@ class AlertesPage extends StatelessWidget {
                                 Row(
                                   children: [
                                     Icon(
-                                      alert['severity'] == 'error'
-                                          ? Icons.warning_rounded
-                                          : alert['severity'] == 'warning'
-                                              ? Icons.info
-                                              : Icons.check_circle,
+                                      isHigh ? Icons.priority_high_rounded : Icons.warning_amber_rounded,
                                       color: color,
                                       size: 16,
                                     ),
                                     const SizedBox(width: 6),
                                     Expanded(
                                       child: Text(
-                                        alert['title'] as String,
+                                        '${alert.title} • ${isHigh ? 'Priorité haute' : 'Priorité moyenne'}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 14,
@@ -112,7 +88,7 @@ class AlertesPage extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  alert['description'] as String,
+                                  alert.description,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: AppTheme.textSecondary,
@@ -122,7 +98,7 @@ class AlertesPage extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  alert['time'] as String,
+                                  _relativeTime(alert.timestamp),
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: AppTheme.textSecondary.withValues(alpha: 0.7),
@@ -145,8 +121,16 @@ class AlertesPage extends StatelessWidget {
                   ),
                 );
               },
-            ),
+      ),
     );
+  }
+
+  String _relativeTime(DateTime timestamp) {
+    final diff = DateTime.now().difference(timestamp);
+    if (diff.inMinutes < 1) return 'À l’instant';
+    if (diff.inHours < 1) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inDays < 1) return 'Il y a ${diff.inHours} h';
+    return 'Il y a ${diff.inDays} j';
   }
 }
 

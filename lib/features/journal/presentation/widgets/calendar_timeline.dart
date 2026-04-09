@@ -6,12 +6,20 @@ class CalendarTimeline extends StatefulWidget {
   final List<Activity> expectedActivities;
   final List<Activity> observedActivities;
   final Function(Activity)? onActivityTap;
+  final bool showExpectedColumn;
+  final bool showObservedColumn;
+  final String expectedColumnTitle;
+  final String observedColumnTitle;
 
   const CalendarTimeline({
     super.key,
     required this.expectedActivities,
     required this.observedActivities,
     this.onActivityTap,
+    this.showExpectedColumn = true,
+    this.showObservedColumn = true,
+    this.expectedColumnTitle = 'JOURNÉE TYPE',
+    this.observedColumnTitle = 'JOURNÉE OBSERVÉE',
   });
 
   @override
@@ -25,6 +33,10 @@ class _CalendarTimelineState extends State<CalendarTimeline> {
       expectedActivities: widget.expectedActivities,
       observedActivities: widget.observedActivities,
       onActivityTap: widget.onActivityTap,
+      showExpectedColumn: widget.showExpectedColumn,
+      showObservedColumn: widget.showObservedColumn,
+      expectedColumnTitle: widget.expectedColumnTitle,
+      observedColumnTitle: widget.observedColumnTitle,
     );
   }
 }
