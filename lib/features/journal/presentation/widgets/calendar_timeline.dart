@@ -10,6 +10,8 @@ class CalendarTimeline extends StatefulWidget {
   final bool showObservedColumn;
   final String expectedColumnTitle;
   final String observedColumnTitle;
+  final double? sharedVerticalOffset;
+  final ValueChanged<double>? onVerticalOffsetChanged;
 
   const CalendarTimeline({
     super.key,
@@ -20,6 +22,8 @@ class CalendarTimeline extends StatefulWidget {
     this.showObservedColumn = true,
     this.expectedColumnTitle = 'JOURNÉE TYPE',
     this.observedColumnTitle = 'JOURNÉE OBSERVÉE',
+    this.sharedVerticalOffset,
+    this.onVerticalOffsetChanged,
   });
 
   @override
@@ -37,6 +41,8 @@ class _CalendarTimelineState extends State<CalendarTimeline> {
       showObservedColumn: widget.showObservedColumn,
       expectedColumnTitle: widget.expectedColumnTitle,
       observedColumnTitle: widget.observedColumnTitle,
+      sharedVerticalOffset: widget.sharedVerticalOffset,
+      onVerticalOffsetChanged: widget.onVerticalOffsetChanged,
     );
   }
 }

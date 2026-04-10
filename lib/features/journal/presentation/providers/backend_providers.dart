@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 import 'dart:math';
 
@@ -14,6 +16,11 @@ import 'package:familly_baecon/features/journal/data/models/mqtt_alert_model.dar
 import 'package:familly_baecon/features/journal/data/models/notification_model.dart';
 import 'package:familly_baecon/features/journal/data/models/sensor_event_model.dart';
 
+final backendApiConnectedProvider = StateProvider<bool>((ref) => false);
+final backendMqttConnectedProvider = StateProvider<bool>((ref) => false);
+final backendLastSyncAtProvider = StateProvider<DateTime?>((ref) => null);
+final backendSyncCounterProvider = StateProvider<int>((ref) => 0);
+
 final _dioProvider = Provider((ref) => DioProvider.create());
 final _journalRemoteDataSourceProvider = Provider((ref) {
   return JournalRemoteDataSource(ref.watch(_dioProvider));
@@ -27,7 +34,24 @@ final _mqttServiceProvider = Provider((ref) {
   );
 });
 
+final forceBackendSyncProvider = Provider<Future<void> Function()>((ref) {
+  final datasource = ref.watch(_journalRemoteDataSourceProvider);
+  return () async {
+    try {
+      await datasource.fetchActivities();
+      await datasource.fetchNotifications();
+      ref.read(backendApiConnectedProvider.notifier).state = true;
+      ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
+      ref.read(backendSyncCounterProvider.notifier).state++;
+    } catch (_) {
+      ref.read(backendApiConnectedProvider.notifier).state = false;
+      rethrow;
+    }
+  };
+});
+
 final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
+  ref.watch(backendSyncCounterProvider);
   final controller = StreamController<List<Activity>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   Timer? timer;
@@ -41,10 +65,13 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
           .toList()
         ..sort((a, b) => a.startAt.compareTo(b.startAt));
       print('[APP] observed activities pushed=${mapped.length}');
+      ref.read(backendApiConnectedProvider.notifier).state = true;
+      ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
       controller.add(mapped);
     } catch (error, stack) {
       if (error is DioException) {
         print('[APP] observed activities fallback empty (network error): ${error.message}');
+        ref.read(backendApiConnectedProvider.notifier).state = false;
         controller.add(const <Activity>[]);
       } else {
         print('[APP] observed activities stream error=$error');
@@ -65,6 +92,7 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
 });
 
 final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
+  ref.watch(backendSyncCounterProvider);
   final controller = StreamController<List<AlertItem>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   final mqttService = ref.watch(_mqttServiceProvider);
@@ -82,10 +110,13 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       final deduplicated = _deduplicateAlerts(mapped)
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
       print('[APP] alerts pushed=${deduplicated.length} (rest=${notifications.length}, mqtt=${mqttAlerts.length})');
+      ref.read(backendApiConnectedProvider.notifier).state = true;
+      ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
       controller.add(deduplicated);
     } catch (error, stack) {
       if (error is DioException) {
         print('[APP] alerts fallback mqtt-only=${mqttAlerts.length} (network error): ${error.message}');
+        ref.read(backendApiConnectedProvider.notifier).state = false;
         controller.add(_deduplicateAlerts(mqttAlerts));
       } else {
         print('[APP] alerts stream error=$error');
@@ -98,6 +129,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
   unawaited(() async {
     try {
       await mqttService.connect();
+      ref.read(backendMqttConnectedProvider.notifier).state = true;
       print('[APP] MQTT channel connected, waiting alerts...');
       mqttSubscription = mqttService
           .jsonMessages(AppConfig.mqttTopicAlerts)
@@ -109,6 +141,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
             unawaited(load());
           });
     } catch (_) {
+      ref.read(backendMqttConnectedProvider.notifier).state = false;
       print('[APP] MQTT unavailable, REST polling remains active');
       // keep REST polling active even if MQTT is unavailable
     }
@@ -118,6 +151,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
   ref.onDispose(() async {
     await mqttSubscription?.cancel();
     mqttService.disconnect();
+    ref.read(backendMqttConnectedProvider.notifier).state = false;
     timer?.cancel();
     await controller.close();
   });
@@ -126,6 +160,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
 });
 
 final liveSensorEventsProvider = StreamProvider<List<SensorEventModel>>((ref) {
+  ref.watch(backendSyncCounterProvider);
   final controller = StreamController<List<SensorEventModel>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   Timer? timer;
@@ -156,6 +191,7 @@ final liveSensorEventsProvider = StreamProvider<List<SensorEventModel>>((ref) {
 });
 
 final liveAnomaliesProvider = StreamProvider<List<AnomalyHistoryModel>>((ref) {
+  ref.watch(backendSyncCounterProvider);
   final controller = StreamController<List<AnomalyHistoryModel>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   Timer? timer;

@@ -52,7 +52,7 @@ class AnomaliesPage extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
-                    '${_typeLabel(anomaly.anomalyType)} • ${_severityLabel(anomaly.severity)} • ${_fmtDate(anomaly.detectedDate)} • vues: ${anomaly.seenCount}',
+                    '${_typeLabel(anomaly.anomalyType)} • ${_severityLabel(anomaly.severity)} • ${_fmtDate(_toFranceTime(anomaly.simulatedAt))} • vues: ${anomaly.seenCount}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

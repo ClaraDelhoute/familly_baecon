@@ -247,6 +247,9 @@ class HomePage extends ConsumerWidget {
     final observed = ref.watch(testObservedActivitiesProvider);
     final expected = ref.watch(testExpectedActivitiesProvider);
     final observedFromBackend = ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const <Activity>[];
+    final serverConnected = ref.watch(backendApiConnectedProvider) || ref.watch(backendMqttConnectedProvider);
+    final lastSyncAt = ref.watch(backendLastSyncAtProvider);
+    final forceSync = ref.watch(forceBackendSyncProvider);
     final testMode = ref.watch(testModeProvider);
     ref.watch(liveAlertsProvider);
 
@@ -337,9 +340,9 @@ class HomePage extends ConsumerWidget {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     // Nom avec indicateur de statut
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
+                                     Row(
+                                       mainAxisSize: MainAxisSize.min,
+                                       children: [
                                         Expanded(
                                           child: Text(
                                             'Réné Martin',
@@ -402,12 +405,49 @@ class HomePage extends ConsumerWidget {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                         ),
+                                       ],
+                                     ),
+                                     const SizedBox(height: 10),
+                                     Container(
+                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                       decoration: BoxDecoration(
+                                         color: Colors.white.withValues(alpha: 0.18),
+                                         borderRadius: BorderRadius.circular(8),
+                                         border: Border.all(
+                                           color: Colors.white.withValues(alpha: 0.35),
+                                           width: 1,
+                                         ),
+                                       ),
+                                       child: Row(
+                                         mainAxisSize: MainAxisSize.max,
+                                         children: [
+                                           Icon(
+                                             Icons.circle,
+                                             size: 9,
+                                             color: serverConnected ? Colors.greenAccent : Colors.orangeAccent,
+                                           ),
+                                           const SizedBox(width: 6),
+                                           Expanded(
+                                             child: Text(
+                                               'Serveur ${serverConnected ? 'disponible' : 'indisponible'}\n'
+                                               'Mise à jour: ${lastSyncAt == null ? '--:--:--' : _formatHms(lastSyncAt)}',
+                                               style: const TextStyle(
+                                                 fontSize: 11,
+                                                 color: Colors.white,
+                                                 fontWeight: FontWeight.w600,
+                                                 height: 1.2,
+                                               ),
+                                               maxLines: 2,
+                                               overflow: TextOverflow.ellipsis,
+                                             ),
+                                           ),
+                                         ],
+                                       ),
+                                     ),
+                                   ],
+                                 ),
+                               ),
                             ],
                           ),
                         ),
@@ -416,6 +456,40 @@ class HomePage extends ConsumerWidget {
                         Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            GestureDetector(
+                              onTap: () async {
+                                try {
+                                  await forceSync();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Mise à jour terminée')),
+                                  );
+                                } catch (_) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Impossible de mettre à jour')),
+                                  );
+                                }
+                              },
+                              child: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.4),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.refresh_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
                             GestureDetector(
                               onTap: () {
                                 Navigator.push(
@@ -813,6 +887,11 @@ class HomePage extends ConsumerWidget {
     final timeStr = '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
 
     return '$typeFormatted • $timeStr';
+  }
+
+  String _formatHms(DateTime date) {
+    final local = date.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}:${local.second.toString().padLeft(2, '0')}';
   }
 
   /// Obtenir la description du phare basée sur le statut

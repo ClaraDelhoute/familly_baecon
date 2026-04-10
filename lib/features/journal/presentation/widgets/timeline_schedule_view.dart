@@ -10,6 +10,8 @@ class TimelineScheduleView extends StatefulWidget {
   final bool showObservedColumn;
   final String expectedColumnTitle;
   final String observedColumnTitle;
+  final double? sharedVerticalOffset;
+  final ValueChanged<double>? onVerticalOffsetChanged;
 
   const TimelineScheduleView({
     super.key,
@@ -20,6 +22,8 @@ class TimelineScheduleView extends StatefulWidget {
     this.showObservedColumn = true,
     this.expectedColumnTitle = 'JOURNÉE TYPE',
     this.observedColumnTitle = 'JOURNÉE OBSERVÉE',
+    this.sharedVerticalOffset,
+    this.onVerticalOffsetChanged,
   });
 
   @override
@@ -29,6 +33,7 @@ class TimelineScheduleView extends StatefulWidget {
 class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   final ScrollController _verticalScrollController = ScrollController();
   int? _lastCenteredMinute;
+  bool _isApplyingSharedOffset = false;
 
   // Journée type hardcodée avec heures exactes
   static const List<Map<String, dynamic>> journeeType = [
@@ -52,8 +57,8 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   ];
 
   // Constantes pour la timeline
-  static const double pixelsPerMinute = 1.0;
   static const double hourHeight = 100.0;
+  static const double pixelsPerMinute = hourHeight / 60.0;
   static const double timeColumnWidth = 92.0;
   static const double _minCardHeight = 34.0;
 
@@ -151,23 +156,55 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   @override
   void initState() {
     super.initState();
+    _verticalScrollController.addListener(_handleVerticalScrollChanged);
     _scheduleAutoCenter();
   }
 
   @override
   void didUpdateWidget(covariant TimelineScheduleView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.sharedVerticalOffset != null &&
+        widget.sharedVerticalOffset != oldWidget.sharedVerticalOffset &&
+        _verticalScrollController.hasClients) {
+      final max = _verticalScrollController.position.maxScrollExtent;
+      final target = widget.sharedVerticalOffset!.clamp(0.0, max);
+      if ((_verticalScrollController.offset - target).abs() > 1) {
+        _isApplyingSharedOffset = true;
+        _verticalScrollController.jumpTo(target);
+        _isApplyingSharedOffset = false;
+      }
+    }
     _scheduleAutoCenter();
   }
 
   @override
   void dispose() {
+    _verticalScrollController.removeListener(_handleVerticalScrollChanged);
     _verticalScrollController.dispose();
     super.dispose();
   }
 
+  void _handleVerticalScrollChanged() {
+    if (_isApplyingSharedOffset) return;
+    widget.onVerticalOffsetChanged?.call(_verticalScrollController.offset);
+  }
+
   void _scheduleAutoCenter() {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _centerOnLatestActivity());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_verticalScrollController.hasClients) return;
+      final shared = widget.sharedVerticalOffset;
+      if (shared != null) {
+        final max = _verticalScrollController.position.maxScrollExtent;
+        final target = shared.clamp(0.0, max);
+        if ((_verticalScrollController.offset - target).abs() > 1) {
+          _isApplyingSharedOffset = true;
+          _verticalScrollController.jumpTo(target);
+          _isApplyingSharedOffset = false;
+        }
+        return;
+      }
+      _centerOnLatestActivity();
+    });
   }
 
   int? _latestRelevantMinute() {
@@ -204,11 +241,10 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
       0.0,
       _verticalScrollController.position.maxScrollExtent,
     );
-    _verticalScrollController.animateTo(
-      target,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeOutCubic,
-    );
+    _isApplyingSharedOffset = true;
+    _verticalScrollController.jumpTo(target);
+    _isApplyingSharedOffset = false;
+    widget.onVerticalOffsetChanged?.call(target);
   }
 
   @override
@@ -365,7 +401,6 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(24, (index) {
-        final endHour = (index + 1) % 24;
         return Container(
           height: hourHeight,
           decoration: BoxDecoration(
@@ -382,15 +417,15 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.only(right: 8, top: 6),
+            padding: const EdgeInsets.only(right: 8, top: 0),
             child: Align(
               alignment: Alignment.topRight,
               child: Text(
-                '${index.toString().padLeft(2, '0')}:00\n${endHour.toString().padLeft(2, '0')}:00',
+                '${index.toString().padLeft(2, '0')}:00',
                 textAlign: TextAlign.right,
                 style: const TextStyle(
                   fontSize: 13,
-                  height: 1.15,
+                  height: 1.0,
                   fontWeight: FontWeight.w700,
                   color: Colors.black,
                 ),
@@ -680,155 +715,86 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     required int endHour,
     required int endMin,
   }) {
-    // Calculer la hauteur pour adapter l'affichage
     int startTotal = _getMinutesFromMidnight(startHour, startMin);
     int endTotal = _getMinutesFromMidnight(endHour, endMin);
     if (endTotal < startTotal) endTotal += 24 * 60;
     final heightPx = (endTotal - startTotal) * pixelsPerMinute;
-    final isSmallCard = heightPx < 50;
-    final isTinyCard = heightPx < 35;
+    final isTinyCard = heightPx < 44;
+    final isSmallCard = heightPx < 64;
 
     final iconToShow = icon.isNotEmpty ? icon : _emojiFromLabel(label);
+    final timeRange =
+        '${startHour.toString().padLeft(2, '0')}:${startMin.toString().padLeft(2, '0')} - ${endHour.toString().padLeft(2, '0')}:${endMin.toString().padLeft(2, '0')}';
+    final compactLabel = _compactTypeLabel(label);
+
     return Opacity(
       opacity: 0.9,
-      child: Container(
-        padding: EdgeInsets.all(isTinyCard ? 6 : 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF30333A),
-          border: Border.all(
-            color: Colors.white38,
-            width: 2,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: isTinyCard ? 4 : 8,
+            vertical: isTinyCard ? 3 : 6,
           ),
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Ligne de couleur accent en haut - GRISE
-          Container(
-            height: 1.5,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.white54,
-              borderRadius: BorderRadius.circular(1),
-            ),
-          ),
-          if (!isTinyCard) const SizedBox(height: 3),
-          // Contenu adapté à la taille - TEXTE GRIS
-          if (isTinyCard)
-            // Pour les TRÈS petites cartes : juste le label court
-            Flexible(
-                  child: Text(
-                    label.split(' ').first, // Juste le premier mot
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      height: 1.0,
-                    ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF2F4F7),
+            border: Border.all(color: Colors.black26, width: 1.6),
+            borderRadius: BorderRadius.circular(6),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
               ),
-            )
-          else if (isSmallCard)
-            // Pour les petites cartes : label + icône compact
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (iconToShow.isNotEmpty)
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: Center(
-                      child: Text(
-                        iconToShow,
-                        style: const TextStyle(fontSize: 11),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                if (iconToShow.isNotEmpty) const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                      height: 1.1,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            )
-          else
-            // Pour les cartes normales : affichage complet
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (iconToShow.isNotEmpty)
-                      SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: Center(
-                          child: Text(
-                            iconToShow,
-                            style: const TextStyle(fontSize: 12),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    if (iconToShow.isNotEmpty) const SizedBox(width: 5),
-                    Flexible(
-                      child: Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${startHour.toString().padLeft(2, '0')}:${startMin.toString().padLeft(2, '0')} - ${endHour.toString().padLeft(2, '0')}:${endMin.toString().padLeft(2, '0')}',
-                  style: TextStyle(
+            ],
+          ),
+          child: isTinyCard
+              ? Text(
+                  '${iconToShow.isEmpty ? '' : '$iconToShow '}${compactLabel.split(' ').first}',
+                  style: const TextStyle(
                     fontSize: 11,
-                    color: Colors.black87,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${iconToShow.isEmpty ? '' : '$iconToShow '}$compactLabel',
+                      style: TextStyle(
+                        fontSize: isSmallCard ? 12 : 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (!isSmallCard) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        '🕒 $timeRange',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-            ),
-        ],
-      ),
+        ),
       ),
     );
   }
   String _getActivityLabel(Activity activity) {
-    final room = activity.room ?? activity.type;
-    return room.length > 12 ? '${room.substring(0, 12)}...' : room;
+    final activityLabel = _formatTypeLabel(activity.type);
+    return activityLabel.length > 18 ? '${activityLabel.substring(0, 18)}...' : activityLabel;
   }
 
   String _emojiFromLabel(String label) {
@@ -840,6 +806,24 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     }
     if (l.contains('sortie') || l.contains('déplacement')) return '🚶';
     return '🕒';
+  }
+
+  String _formatTypeLabel(String rawType) {
+    final t = rawType.toLowerCase();
+    if (t.contains('sleep') || t.contains('sommeil')) return 'Sommeil';
+    if (t.contains('meal') || t.contains('repas') || t.contains('breakfast') || t.contains('lunch') || t.contains('dinner')) {
+      return 'Repas';
+    }
+    if (t.contains('toilet') || t.contains('douche') || t.contains('hygiene')) return 'Hygiène';
+    if (t.contains('sortie') || t.contains('outside') || t.contains('déplacement')) return 'Sortie / déplacement';
+    if (t.contains('tv') || t.contains('television')) return 'Télévision';
+    if (t.contains('kitchen') || t.contains('cuisine')) return 'Cuisine';
+    return rawType;
+  }
+
+  String _compactTypeLabel(String label) {
+    if (label.length <= 24) return label;
+    return '${label.substring(0, 24)}…';
   }
 
   String _emojiForObserved(Activity activity) {
@@ -892,7 +876,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
             'startMin': startMinute % 60,
             'endHour': (endMinute ~/ 60) % 24,
             'endMin': endMinute % 60,
-            'label': activity.type,
+            'label': _formatTypeLabel(activity.type),
             'icon': _emojiForObserved(activity),
           };
         })

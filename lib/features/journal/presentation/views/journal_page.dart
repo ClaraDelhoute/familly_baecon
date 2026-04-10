@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
 import 'package:familly_baecon/features/journal/presentation/widgets/calendar_timeline.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/core/widgets/common_header.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
+import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 
 class JournalPage extends ConsumerStatefulWidget {
   final Function(int)? onNavigate;
@@ -21,26 +23,33 @@ class JournalPage extends ConsumerStatefulWidget {
 class _JournalPageState extends ConsumerState<JournalPage> {
   DateTime? _selectedDate;
   DatePickerMode? _calendarMode;
+  double? _sharedTimelineScrollOffset;
 
   @override
   Widget build(BuildContext context) {
     final ref = this.ref;
     final observedAsync = ref.watch(liveObservedActivitiesProvider);
+    final anomaliesAsync = ref.watch(liveAnomaliesProvider);
     final observed = observedAsync.when(
       data: (items) => items,
       loading: () => const <Activity>[],
       error: (error, stackTrace) => const <Activity>[],
     );
-    final simulatedNow = _simulatedNowFromObserved(observed);
+    final observedLocal = observed.map(_toLocalActivity).toList();
+    final anomalies = anomaliesAsync.when(
+      data: (items) => items,
+      loading: () => const <AnomalyHistoryModel>[],
+      error: (error, stackTrace) => const <AnomalyHistoryModel>[],
+    );
+    final simulatedNow = _simulatedNow(observedLocal, anomalies);
     final defaultDay = DateTime(simulatedNow.year, simulatedNow.month, simulatedNow.day);
     final selectedDay = _selectedDate ?? defaultDay;
 
-    final observedForDay = _filterActivitiesByDay(observed, selectedDay);
-    final expected = _buildTypeDayFromObserved(observedForDay);
+    final observedForDay = _filterActivitiesByDay(observedLocal, selectedDay);
+    final expectedTemplate = ref.watch(expectedActivitiesProvider);
+    final expected = _rebaseExpectedToDay(expectedTemplate, selectedDay);
 
     final dateFormatter = _formatFrenchDate(selectedDay);
-    final currentWindow = _buildTwoHoursWindow(observedForDay, simulatedNow);
-    final observedWindow = _filterWindow(observedForDay, currentWindow.$1, currentWindow.$2);
 
     return Scaffold(
       backgroundColor: AppTheme.darkBg,
@@ -139,7 +148,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         color: AppTheme.darkBgLight.withValues(alpha: 0.35),
                         child: Text(
-                          'Fenêtre lisible: ${_formatHm(currentWindow.$1)} - ${_formatHm(currentWindow.$2)}',
+                          'Activités observées de la journée',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppTheme.textSecondary,
@@ -151,9 +160,13 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                         Expanded(
                           child: CalendarTimeline(
                             expectedActivities: const <Activity>[],
-                            observedActivities: observedWindow,
+                            observedActivities: observedForDay,
                             showExpectedColumn: false,
                             observedColumnTitle: 'JOURNÉE OBSERVÉE',
+                            sharedVerticalOffset: _sharedTimelineScrollOffset,
+                            onVerticalOffsetChanged: (offset) {
+                              _sharedTimelineScrollOffset = offset;
+                            },
                           ),
                         ),
                       ],
@@ -180,6 +193,10 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                             observedActivities: const <Activity>[],
                             showObservedColumn: false,
                             expectedColumnTitle: 'JOURNÉE TYPE',
+                            sharedVerticalOffset: _sharedTimelineScrollOffset,
+                            onVerticalOffsetChanged: (offset) {
+                              _sharedTimelineScrollOffset = offset;
+                            },
                           ),
                         ),
                       ],
@@ -193,36 +210,25 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     );
   }
 
-  DateTime _simulatedNowFromObserved(List<Activity> observed) {
-    if (observed.isEmpty) return DateTime.now();
-    return observed
-        .map((a) => a.endAt ?? a.startAt)
-        .reduce((a, b) => a.isAfter(b) ? a : b);
-  }
-
-  (DateTime, DateTime) _buildTwoHoursWindow(List<Activity> observed, DateTime simulatedNow) {
-    if (observed.isEmpty) {
-      return (simulatedNow.subtract(const Duration(hours: 2)), simulatedNow);
+  DateTime _simulatedNow(List<Activity> observed, List<AnomalyHistoryModel> anomalies) {
+    if (observed.isNotEmpty) {
+      return observed
+          .map((a) => (a.endAt ?? a.startAt).toLocal())
+          .reduce((a, b) => a.isAfter(b) ? a : b);
     }
-    final end = observed
-        .map((a) => a.endAt ?? a.startAt)
-        .reduce((a, b) => a.isAfter(b) ? a : b);
-    return (end.subtract(const Duration(hours: 2)), end);
+    if (anomalies.isNotEmpty) {
+      return anomalies
+          .map((a) => a.simulatedAt.toLocal())
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+    }
+    return DateTime.now();
   }
 
   List<Activity> _filterActivitiesByDay(List<Activity> activities, DateTime day) {
+    final dayLocal = day.toLocal();
     return activities.where((activity) {
-      final d = activity.startAt;
-      return d.year == day.year && d.month == day.month && d.day == day.day;
-    }).toList();
-  }
-
-  List<Activity> _filterWindow(List<Activity> activities, DateTime start, DateTime end) {
-    return activities.where((activity) {
-      final activityStart = activity.startAt;
-      final activityEnd = activity.endAt ?? activity.startAt;
-      final overlaps = !activityEnd.isBefore(start) && !activityStart.isAfter(end);
-      return overlaps;
+      final d = activity.startAt.toLocal();
+      return d.year == dayLocal.year && d.month == dayLocal.month && d.day == dayLocal.day;
     }).toList();
   }
 
@@ -231,36 +237,40 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
-  String _formatHm(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  Activity _toLocalActivity(Activity activity) {
+    final startLocal = activity.startAt.toLocal();
+    final endLocal = activity.endAt?.toLocal();
+    return activity.copyWith(
+      startAt: startLocal,
+      endAt: endLocal,
+    );
   }
 
-  List<Activity> _buildTypeDayFromObserved(List<Activity> observed) {
-    if (observed.isEmpty) return const <Activity>[];
-    final byType = <String, List<Activity>>{};
-    for (final activity in observed) {
-      byType.putIfAbsent(activity.type, () => <Activity>[]).add(activity);
-    }
-
-    final merged = <Activity>[];
-    for (final entry in byType.entries) {
-      final items = entry.value..sort((a, b) => a.startAt.compareTo(b.startAt));
-      final first = items.first;
-      final latestEnd = items
-          .map((a) => a.endAt ?? a.startAt)
-          .reduce((a, b) => a.isAfter(b) ? a : b);
-      merged.add(
-        first.copyWith(
-          id: 'type_${first.type}',
-          startAt: first.startAt,
-          endAt: latestEnd,
-          durationMin: latestEnd.difference(first.startAt).inMinutes,
-        ),
+  List<Activity> _rebaseExpectedToDay(List<Activity> template, DateTime day) {
+    return template.map((activity) {
+      final start = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        activity.startAt.hour,
+        activity.startAt.minute,
+        activity.startAt.second,
       );
-    }
-
-    merged.sort((a, b) => a.startAt.compareTo(b.startAt));
-    return merged;
+      final end = activity.durationMin != null
+          ? start.add(Duration(minutes: activity.durationMin!))
+          : activity.endAt == null
+              ? null
+              : DateTime(
+                  day.year,
+                  day.month,
+                  day.day,
+                  activity.endAt!.hour,
+                  activity.endAt!.minute,
+                  activity.endAt!.second,
+                );
+      return activity.copyWith(startAt: start, endAt: end);
+    }).toList()
+      ..sort((a, b) => a.startAt.compareTo(b.startAt));
   }
 }
 
