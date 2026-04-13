@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:familly_baecon/core/services/app_badge_service.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/widgets/animated_lighthouse.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -9,7 +10,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -47,16 +49,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final lighthouseColor = switch (AppBadgeService.currentStatus
+        .toLowerCase()) {
+      'critical' => const Color(0xFFEF4444),
+      'warning' => const Color(0xFFF59E0B),
+      _ => const Color(0xFF10B981),
+    };
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              AppTheme.accentBlue,
-              AppTheme.accentCyan,
-            ],
+            colors: [AppTheme.accentBlue, AppTheme.accentCyan],
           ),
         ),
         child: Center(
@@ -71,9 +77,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   SizedBox(
                     width: 200,
                     height: 200,
-                    child: SvgPicture.asset(
-                      'assets/logo.svg',
-                      fit: BoxFit.contain,
+                    child: AnimatedLighthouse(
+                      color: lighthouseColor,
+                      size: 190,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -88,17 +94,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                   ),
                   const SizedBox(height: 50),
-                  // Loading indicator
-                  SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.white.withValues(alpha: 0.8),
-                      ),
-                      strokeWidth: 2,
-                    ),
-                  ),
+                  AnimatedLighthouse(color: lighthouseColor, size: 52),
                 ],
               ),
             ),
@@ -108,4 +104,3 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 }
-

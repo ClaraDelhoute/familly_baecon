@@ -8,21 +8,17 @@ import 'package:familly_baecon/features/journal/presentation/providers/backend_p
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/profile/presentation/views/profile_page.dart';
-import 'package:familly_baecon/features/alertes/presentation/views/alertes_page.dart';
+import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_indicator.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
 import 'package:familly_baecon/features/home/presentation/providers/floor_plan_providers.dart';
+import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
 
 import '../../domain/entities/activity.dart';
 
-// ========== PROVIDERS DE TEST ==========
-// Mode test : Change la valeur pour tester les différents cas
-enum TestMode { real, ok, warning, critical }
 enum ActivityStatus { ok, warning, critical }
-final testModeProvider = StateProvider<TestMode>((ref) => TestMode.real);
-final lastPopupAlertIdProvider = StateProvider<String?>((ref) => null);
 
 // Provider pour les activités observées - MODE TEST
 final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
@@ -32,7 +28,8 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
   switch (mode) {
     case TestMode.real:
       // Données réelles depuis le provider normal
-      return ref.watch(liveObservedActivitiesProvider).valueOrNull ?? ref.watch(observedActivitiesProvider);
+      return ref.watch(liveObservedActivitiesProvider).valueOrNull ??
+          ref.watch(observedActivitiesProvider);
 
     case TestMode.ok:
       // Cas OK : 🟢 Toutes les activités correspondent PARFAITEMENT (>85%)
@@ -92,8 +89,20 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
           deviceId: 'd_chambre',
           type: 'sleep',
           room: 'CHAMBRE',
-          startAt: DateTime(date.year, date.month, date.day, 1, 30), // Décalage de 1h30
-          endAt: DateTime(date.year, date.month, date.day, 8, 30), // Réveillé 1h tard
+          startAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            1,
+            30,
+          ), // Décalage de 1h30
+          endAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            8,
+            30,
+          ), // Réveillé 1h tard
           durationMin: 420, // Ratio: 360/450 = 80% (OK mais borderline)
         ),
         Activity(
@@ -102,7 +111,13 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
           type: 'toilettes',
           room: 'SALLE DE BAIN',
           startAt: DateTime(date.year, date.month, date.day, 8, 10),
-          endAt: DateTime(date.year, date.month, date.day, 8, 30), // ⚠️ Durée augmentée
+          endAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            8,
+            30,
+          ), // ⚠️ Durée augmentée
           durationMin: 20,
         ),
         Activity(
@@ -110,8 +125,20 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
           deviceId: 'd_cuisine',
           type: 'petit-déjeuner',
           room: 'CUISINE',
-          startAt: DateTime(date.year, date.month, date.day, 9, 0), // ⚠️ Décalage de 1h
-          endAt: DateTime(date.year, date.month, date.day, 9, 20), // ⚠️ Durée réduite
+          startAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            9,
+            0,
+          ), // ⚠️ Décalage de 1h
+          endAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            9,
+            20,
+          ), // ⚠️ Durée réduite
           durationMin: 20,
         ),
         // ⚠️ Déjeuner très décalé et durée réduite
@@ -120,8 +147,20 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
           deviceId: 'd_cuisine',
           type: 'déjeuner',
           room: 'CUISINE',
-          startAt: DateTime(date.year, date.month, date.day, 13, 30), // ⚠️ 1h30 de retard
-          endAt: DateTime(date.year, date.month, date.day, 14, 0), // ⚠️ Durée réduite
+          startAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            13,
+            30,
+          ), // ⚠️ 1h30 de retard
+          endAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            14,
+            0,
+          ), // ⚠️ Durée réduite
           durationMin: 30,
         ),
         // ⚠️ Activité dans une autre pièce
@@ -130,7 +169,13 @@ final testObservedActivitiesProvider = Provider<List<Activity>>((ref) {
           deviceId: 'd_chambre',
           type: 'activité',
           room: 'CHAMBRE',
-          startAt: DateTime(date.year, date.month, date.day, 15, 30), // ⚠️ 1h30 de retard
+          startAt: DateTime(
+            date.year,
+            date.month,
+            date.day,
+            15,
+            30,
+          ), // ⚠️ 1h30 de retard
           endAt: DateTime(date.year, date.month, date.day, 17, 0),
           durationMin: 90,
         ),
@@ -246,11 +291,9 @@ class HomePage extends ConsumerWidget {
     // Utiliser les providers de test au lieu des vrais providers
     final observed = ref.watch(testObservedActivitiesProvider);
     final expected = ref.watch(testExpectedActivitiesProvider);
-    final observedFromBackend = ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const <Activity>[];
-    final serverConnected = ref.watch(backendApiConnectedProvider) || ref.watch(backendMqttConnectedProvider);
-    final lastSyncAt = ref.watch(backendLastSyncAtProvider);
-    final forceSync = ref.watch(forceBackendSyncProvider);
-    final testMode = ref.watch(testModeProvider);
+    final observedFromBackend =
+        ref.watch(liveObservedActivitiesProvider).valueOrNull ??
+        const <Activity>[];
     ref.watch(liveAlertsProvider);
 
     ref.listen(liveAlertsProvider, (previous, next) {
@@ -267,490 +310,274 @@ class HomePage extends ConsumerWidget {
     });
 
     // Dernière activité observée (priorité aux données backend)
-    final observedForLastActivity = observedFromBackend.isNotEmpty ? observedFromBackend : observed;
+    final observedForLastActivity = observedFromBackend.isNotEmpty
+        ? observedFromBackend
+        : observed;
     final lastActivity = observedForLastActivity.isNotEmpty
-        ? observedForLastActivity.reduce((a, b) => a.startAt.isAfter(b.startAt) ? a : b)
+        ? observedForLastActivity.reduce(
+            (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
+          )
         : null;
 
-    // 3 dernières activités
-    final lastThreeActivities = observed.length >= 3
-        ? observed.sublist(observed.length - 3)
-        : observed;
-
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Accueil'),
+        actions: [
+          IconButton(
+            tooltip: 'Paramètres',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+            icon: const Icon(Icons.settings),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header profil cliquable - AMÉLIORÉ
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProfilePage(),
-                  ),
-                );
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppTheme.accentBlue, AppTheme.accentCyan],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(24, 40, 24, 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilePage(),
+                    ),
+                  );
+                },
+                child: Row(
                   children: [
-                    // Row avec profil et cloche - SIMPLIFIÉ
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Profil (gauche)
-                        Expanded(
-                          child: Row(
-                            children: [
-                              // Avatar avec photo
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(35),
-                                child: Container(
-                                  width: 70,
-                                  height: 70,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 3),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.2),
-                                        blurRadius: 8,
-                                      ),
-                                    ],
-                                  ),
-                                  child: SvgPicture.asset(
-                                    'assets/rene_profile.svg',
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Nom avec indicateur de statut
-                                     Row(
-                                       mainAxisSize: MainAxisSize.min,
-                                       children: [
-                                        Expanded(
-                                          child: Text(
-                                            'Réné Martin',
-                                            style: const TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                              height: 1.2,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        // Mini-phare indicateur
-                                        Container(
-                                          width: 12,
-                                          height: 12,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: _getPhareColor(expected, observed),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: _getPhareColor(expected, observed).withValues(alpha: 0.8),
-                                                blurRadius: 6,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    // Dernière activité - HIÉRARCHIE 2
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 8,
-                                          height: 8,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.greenAccent,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.greenAccent.withValues(alpha: 0.6),
-                                                blurRadius: 4,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Flexible(
-                                         child: Text(
-                                            _formatActivityStatus(lastActivity),
-                                            style: const TextStyle(
-                                              fontSize: 15,
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                         ),
-                                       ],
-                                     ),
-                                     const SizedBox(height: 10),
-                                     Container(
-                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                       decoration: BoxDecoration(
-                                         color: Colors.white.withValues(alpha: 0.18),
-                                         borderRadius: BorderRadius.circular(8),
-                                         border: Border.all(
-                                           color: Colors.white.withValues(alpha: 0.35),
-                                           width: 1,
-                                         ),
-                                       ),
-                                       child: Row(
-                                         mainAxisSize: MainAxisSize.max,
-                                         children: [
-                                           Icon(
-                                             Icons.circle,
-                                             size: 9,
-                                             color: serverConnected ? Colors.greenAccent : Colors.orangeAccent,
-                                           ),
-                                           const SizedBox(width: 6),
-                                           Expanded(
-                                             child: Text(
-                                               'Serveur ${serverConnected ? 'disponible' : 'indisponible'}\n'
-                                               'Mise à jour: ${lastSyncAt == null ? '--:--:--' : _formatHms(lastSyncAt)}',
-                                               style: const TextStyle(
-                                                 fontSize: 11,
-                                                 color: Colors.white,
-                                                 fontWeight: FontWeight.w600,
-                                                 height: 1.2,
-                                               ),
-                                               maxLines: 2,
-                                               overflow: TextOverflow.ellipsis,
-                                             ),
-                                           ),
-                                         ],
-                                       ),
-                                     ),
-                                   ],
-                                 ),
-                               ),
-                            ],
-                          ),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: SvgPicture.asset(
+                          'assets/rene_profile.svg',
+                          fit: BoxFit.cover,
                         ),
-                        // Boutons (droite) - Cloche et Debug
-                        const SizedBox(width: 8),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                try {
-                                  await forceSync();
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Mise à jour terminée')),
-                                  );
-                                } catch (_) {
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Impossible de mettre à jour')),
-                                  );
-                                }
-                              },
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.4),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: const Icon(
-                                  Icons.refresh_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const AlertesPage(),
-                                  ),
-                                );
-                              },
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.4),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.notifications_none,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            PopupMenuButton<TestMode>(
-                              onSelected: (TestMode mode) {
-                                ref.read(testModeProvider.notifier).state = mode;
-                              },
-                              itemBuilder: (BuildContext context) => <PopupMenuEntry<TestMode>>[
-                                const PopupMenuItem<TestMode>(
-                                  value: TestMode.real,
-                                  child: Text('🔄 Réel'),
-                                ),
-                                const PopupMenuItem<TestMode>(
-                                  value: TestMode.ok,
-                                  child: Text('🟢 OK'),
-                                ),
-                                const PopupMenuItem<TestMode>(
-                                  value: TestMode.warning,
-                                  child: Text('🟡 Warning'),
-                                ),
-                                const PopupMenuItem<TestMode>(
-                                  value: TestMode.critical,
-                                  child: Text('🔴 Critical'),
-                                ),
-                              ],
-                              child: Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.4),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                child: Icon(
-                                  Icons.bug_report_outlined,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Réné Martin',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textPrimary,
                         ),
-                      ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(height: 10),
+              Text(
+                _formatActivityStatus(lastActivity),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 18),
+              // === PHARE INDICATOR (gère la modal) ===
+              PhareIndicator(expected: expected, observed: observed),
 
-            // Contenu principal avec espacing généreux
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // === PHARE INDICATOR (gère la modal) ===
-                  PhareIndicator(
-                    expected: expected,
-                    observed: observed,
-                  ),
-
-                  // === PHARE SECTION - MAGNIFIQUE ===
-                  GestureDetector(
-                    onTap: () {
-                      final status = _getPhareStatus(expected, observed);
-                      _showPhareModal(context, expected, observed, status);
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            AppTheme.darkBg,
-                            AppTheme.darkBgLight.withValues(alpha: 0.8),
-                          ],
-                        ),
-                        border: Border.all(
-                          color: _getPhareColor(expected, observed).withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: _getPhareColor(expected, observed).withValues(alpha: 0.15),
-                            blurRadius: 20,
-                            spreadRadius: 0,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
+              // === PHARE SECTION - MAGNIFIQUE ===
+              GestureDetector(
+                onTap: () {
+                  final status = _getPhareStatus(expected, observed);
+                  _showPhareModal(context, expected, observed, status);
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        AppTheme.darkBg,
+                        AppTheme.darkBgLight.withValues(alpha: 0.8),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: _getPhareColor(
+                        expected,
+                        observed,
+                      ).withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _getPhareColor(
+                          expected,
+                          observed,
+                        ).withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        spreadRadius: 0,
+                        offset: const Offset(0, 8),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 32,
+                    horizontal: 20,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Titre
+                      Text(
+                        'Statut Journalier',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textSecondary,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Phare magnifique
+                      PhareMagnifique(expected: expected, observed: observed),
+
+                      const SizedBox(height: 24),
+
+                      // Description dynamique
+                      Text(
+                        _getPhareDescription(expected, observed),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.textPrimary,
+                          height: 1.6,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Indication "Cliquable"
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Titre
-                          Text(
-                            'Statut Journalier',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textSecondary,
-                              letterSpacing: 1,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Phare magnifique
-                          PhareMagnifique(
-                            expected: expected,
-                            observed: observed,
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // Description dynamique
-                          Text(
-                            _getPhareDescription(expected, observed),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.textPrimary,
-                              height: 1.6,
-                              fontWeight: FontWeight.w500,
+                            decoration: BoxDecoration(
+                              color: _getPhareColor(
+                                expected,
+                                observed,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: _getPhareColor(
+                                  expected,
+                                  observed,
+                                ).withValues(alpha: 0.3),
+                                width: 1,
+                              ),
                             ),
-                            textAlign: TextAlign.center,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Indication "Cliquable"
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: _getPhareColor(expected, observed).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: _getPhareColor(expected, observed).withValues(alpha: 0.3),
-                                    width: 1,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.touch_app_rounded,
+                                  size: 14,
+                                  color: _getPhareColor(expected, observed),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Voir les anomalies',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: _getPhareColor(expected, observed),
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.touch_app_rounded,
-                                      size: 14,
-                                      color: _getPhareColor(expected, observed),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Voir les anomalies',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: _getPhareColor(expected, observed),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 28),
-
-                  // === RÉSUMÉ DU JOUR (EN PREMIER) ===
-                  Text(
-                    'Résumé du jour',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  // Stats en cartes individuelles
-                  _buildDailySummaryStats(observedForLastActivity),
-                  const SizedBox(height: 32),
-
-                  // === PLAN DU LOGEMENT (AMÉLIORÉ) ===
-                  Consumer(
-                    builder: (context, ref, child) {
-                      final rooms = ref.watch(roomsProvider);
-                      final sensors = ref.watch(sensorsProvider);
-                      final selectedRoom = ref.watch(selectedRoomProvider);
-                      final activeSensor = ref.watch(activateSensorProvider);
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Titre
-                          Text(
-                            'Localisation',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          // Carte
-                          FloorPlanWidget(
-                            rooms: rooms,
-                            sensors: sensors,
-                            selectedRoomId: selectedRoom,
-                            activeSensorId: activeSensor,
-                            onRoomTap: (roomId) {
-                              ref.read(selectedRoomProvider.notifier).state = roomId;
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 32),
-
-                  // === DERNIÈRES ACTIVITÉS - SUPPRIMÉ ===
-                  // Section "Dernières activités" has been removed as per requirements
-                  const SizedBox(height: 24),
-                ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 28),
+
+              // === RÉSUMÉ DU JOUR (EN PREMIER) ===
+              Text(
+                'Résumé du jour',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Stats en cartes individuelles
+              _buildDailySummaryStats(observedForLastActivity),
+              const SizedBox(height: 32),
+
+              // === PLAN DU LOGEMENT (AMÉLIORÉ) ===
+              Consumer(
+                builder: (context, ref, child) {
+                  final rooms = ref.watch(roomsProvider);
+                  final sensors = ref.watch(sensorsProvider);
+                  final selectedRoom = ref.watch(selectedRoomProvider);
+                  final activeSensor = ref.watch(activateSensorProvider);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Titre
+                      Text(
+                        'Localisation',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      // Carte
+                      FloorPlanWidget(
+                        rooms: rooms,
+                        sensors: sensors,
+                        selectedRoomId: selectedRoom,
+                        activeSensorId: activeSensor,
+                        onRoomTap: (roomId) {
+                          ref.read(selectedRoomProvider.notifier).state =
+                              roomId;
+                        },
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 32),
+
+              // === DERNIÈRES ACTIVITÉS - SUPPRIMÉ ===
+              // Section "Dernières activités" has been removed as per requirements
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
@@ -774,21 +601,24 @@ class HomePage extends ConsumerWidget {
     final latestOther = observed.isEmpty
         ? null
         : observed
-            .where((activity) {
-              final type = activity.type.toLowerCase();
-              return !(type.contains('sleep') ||
-                  type.contains('sommeil') ||
-                  type.contains('petit_dejeuner') ||
-                  type.contains('petit-déjeuner') ||
-                  type.contains('dejeuner') ||
-                  type.contains('déjeuner') ||
-                  type.contains('souper') ||
-                  type.contains('repas'));
-            })
-            .fold<Activity?>(
-              null,
-              (prev, current) => prev == null || current.startAt.isAfter(prev.startAt) ? current : prev,
-            );
+              .where((activity) {
+                final type = activity.type.toLowerCase();
+                return !(type.contains('sleep') ||
+                    type.contains('sommeil') ||
+                    type.contains('petit_dejeuner') ||
+                    type.contains('petit-déjeuner') ||
+                    type.contains('dejeuner') ||
+                    type.contains('déjeuner') ||
+                    type.contains('souper') ||
+                    type.contains('repas'));
+              })
+              .fold<Activity?>(
+                null,
+                (prev, current) =>
+                    prev == null || current.startAt.isAfter(prev.startAt)
+                    ? current
+                    : prev,
+              );
     final latestOtherTime = latestOther == null
         ? 'N/A'
         : '${latestOther.startAt.hour.toString().padLeft(2, '0')}:${latestOther.startAt.minute.toString().padLeft(2, '0')}';
@@ -823,7 +653,11 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  void _showAnomalyDetails(BuildContext context, List<Activity> expected, List<Activity> observed) {
+  void _showAnomalyDetails(
+    BuildContext context,
+    List<Activity> expected,
+    List<Activity> observed,
+  ) {
     // Cette méthode a été déplacée dans le widget PhareStatusIndicator
     // Elle n'est plus utilisée ici
   }
@@ -880,22 +714,22 @@ class HomePage extends ConsumerWidget {
     // Capitaliser le type d'activité
     String typeFormatted = activity.type;
     if (typeFormatted.isNotEmpty) {
-      typeFormatted = typeFormatted[0].toUpperCase() + typeFormatted.substring(1);
+      typeFormatted =
+          typeFormatted[0].toUpperCase() + typeFormatted.substring(1);
     }
 
     // Ajouter l'heure de début
-    final timeStr = '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
 
     return '$typeFormatted • $timeStr';
   }
 
-  String _formatHms(DateTime date) {
-    final local = date.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}:${local.second.toString().padLeft(2, '0')}';
-  }
-
   /// Obtenir la description du phare basée sur le statut
-  String _getPhareDescription(List<Activity> expected, List<Activity> observed) {
+  String _getPhareDescription(
+    List<Activity> expected,
+    List<Activity> observed,
+  ) {
     final status = _getPhareStatus(expected, observed);
 
     switch (status) {
@@ -909,7 +743,10 @@ class HomePage extends ConsumerWidget {
   }
 
   /// Obtenir le statut du phare
-  ActivityStatus _getPhareStatus(List<Activity> expected, List<Activity> observed) {
+  ActivityStatus _getPhareStatus(
+    List<Activity> expected,
+    List<Activity> observed,
+  ) {
     var worst = ActivityStatus.ok;
     for (final exp in expected) {
       Activity? match;
@@ -949,7 +786,12 @@ class HomePage extends ConsumerWidget {
   }
 
   /// Afficher la modal du phare avec les détails
-  void _showPhareModal(BuildContext context, List<Activity> expected, List<Activity> observed, ActivityStatus status) {
+  void _showPhareModal(
+    BuildContext context,
+    List<Activity> expected,
+    List<Activity> observed,
+    ActivityStatus status,
+  ) {
     final colors = {
       ActivityStatus.ok: const Color(0xFF10B981),
       ActivityStatus.warning: const Color(0xFFF59E0B),
@@ -1004,8 +846,8 @@ class HomePage extends ConsumerWidget {
                       status == ActivityStatus.ok
                           ? Icons.check_circle_rounded
                           : status == ActivityStatus.warning
-                              ? Icons.warning_rounded
-                              : Icons.error_rounded,
+                          ? Icons.warning_rounded
+                          : Icons.error_rounded,
                       color: Colors.white,
                       size: 40,
                     ),
@@ -1022,15 +864,12 @@ class HomePage extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     description,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade600,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
-                    if (status != ActivityStatus.ok)
-                      Padding(
+                  if (status != ActivityStatus.ok)
+                    Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Text(
                         'Consultez les détails pour comprendre les anomalies détectées',
@@ -1041,26 +880,34 @@ class HomePage extends ConsumerWidget {
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      ),
+                    ),
                   if (status != ActivityStatus.ok)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: ElevatedButton(
                         onPressed: () async {
                           Navigator.pop(dialogContext);
-                          final anomalies = await ProviderScope.containerOf(context, listen: false)
-                              .read(liveAnomaliesProvider.future);
-                          final latestId = anomalies.isNotEmpty ? anomalies.first.id : null;
+                          final anomalies = await ProviderScope.containerOf(
+                            context,
+                            listen: false,
+                          ).read(liveAnomaliesProvider.future);
+                          final latestId = anomalies.isNotEmpty
+                              ? anomalies.first.id
+                              : null;
                           if (latestId != null) {
                             ProviderScope.containerOf(context, listen: false)
-                                .read(focusedAnomalyIdProvider.notifier)
-                                .state = latestId;
+                                    .read(focusedAnomalyIdProvider.notifier)
+                                    .state =
+                                latestId;
                           }
-                          onNavigate?.call(3);
+                          onNavigate?.call(2);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.activityOrange,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
                         ),
                         child: const Text(
                           'Voir l’anomalie',
@@ -1072,7 +919,10 @@ class HomePage extends ConsumerWidget {
                     onPressed: () => Navigator.pop(dialogContext),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 12,
+                      ),
                     ),
                     child: const Text(
                       'Fermer',
@@ -1098,7 +948,9 @@ class HomePage extends ConsumerWidget {
     final isHigh = alert.severity == 'high';
     final accentColor = isHigh ? AppTheme.activityRed : AppTheme.activityOrange;
     final priorityText = isHigh ? 'Priorité haute' : 'Priorité moyenne';
-    final icon = isHigh ? Icons.priority_high_rounded : Icons.warning_amber_rounded;
+    final icon = isHigh
+        ? Icons.priority_high_rounded
+        : Icons.warning_amber_rounded;
     final typeLabel = _anomalyLabel(alert.anomalyType);
 
     showDialog(
@@ -1115,7 +967,10 @@ class HomePage extends ConsumerWidget {
               contentPadding: EdgeInsets.zero,
               content: Container(
                 width: MediaQuery.of(context).size.width * 0.84,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 24,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -1176,13 +1031,20 @@ class HomePage extends ConsumerWidget {
                           child: ElevatedButton(
                             onPressed: () async {
                               Navigator.pop(dialogContext);
-                              final anomalies = await ref.read(liveAnomaliesProvider.future);
+                              final anomalies = await ref.read(
+                                liveAnomaliesProvider.future,
+                              );
                               if (!context.mounted) return;
-                              final latestId = anomalies.isNotEmpty ? anomalies.first.id : null;
+                              final latestId = anomalies.isNotEmpty
+                                  ? anomalies.first.id
+                                  : null;
                               if (latestId != null) {
-                                ref.read(focusedAnomalyIdProvider.notifier).state = latestId;
+                                ref
+                                        .read(focusedAnomalyIdProvider.notifier)
+                                        .state =
+                                    latestId;
                               }
-                              onNavigate?.call(3);
+                              onNavigate?.call(2);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: accentColor,
@@ -1221,8 +1083,11 @@ class HomePage extends ConsumerWidget {
     if (!sameRoom) return ActivityStatus.critical;
     final expectedDuration = exp.endAt?.difference(exp.startAt).inMinutes ?? 0;
     if (expectedDuration == 0) return ActivityStatus.critical;
-    final overlapStart = exp.startAt.isAfter(obs.startAt) ? exp.startAt : obs.startAt;
-    final overlapEnd = (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
+    final overlapStart = exp.startAt.isAfter(obs.startAt)
+        ? exp.startAt
+        : obs.startAt;
+    final overlapEnd =
+        (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
         ? (exp.endAt ?? exp.startAt)
         : (obs.endAt ?? obs.startAt);
     final overlap = overlapEnd.isAfter(overlapStart)
@@ -1326,10 +1191,7 @@ class _ActivityCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: color.withValues(alpha: 0.2),
-              width: 1,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -1386,7 +1248,10 @@ class _ActivityCard extends StatelessWidget {
                 ),
                 // Durée badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
@@ -1408,4 +1273,3 @@ class _ActivityCard extends StatelessWidget {
     );
   }
 }
-

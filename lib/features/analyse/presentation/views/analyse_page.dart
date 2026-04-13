@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 
 class AnalysePage extends ConsumerWidget {
   final Function(int)? onNavigate;
@@ -10,14 +11,30 @@ class AnalysePage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final observed = ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
-    final dailyStats = BehaviorStatsService.buildDailyStats(observed, maxDays: 28);
+    final observed =
+        ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
+    final dailyStats = BehaviorStatsService.buildDailyStats(
+      observed,
+      maxDays: 28,
+    );
     final declineMetrics = BehaviorStatsService.buildDeclineMetrics(dailyStats);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analyse'),
         elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: 'Paramètres',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+            icon: const Icon(Icons.settings),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -29,7 +46,9 @@ class AnalysePage extends ConsumerWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 12),
-            ...declineMetrics.map((metric) => _DeclineMetricCard(metric: metric)),
+            ...declineMetrics.map(
+              (metric) => _DeclineMetricCard(metric: metric),
+            ),
             const SizedBox(height: 24),
             Text(
               'Évolution quotidienne (28 jours)',
@@ -77,10 +96,7 @@ class _DeclineMetricCard extends StatelessWidget {
         ),
         trailing: Text(
           deltaLabel,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -108,9 +124,18 @@ class _SimpleTrendChart extends StatelessWidget {
       );
     }
 
-    final maxSleep = dailyStats.map((d) => d.sleepMinutes / 60).reduce((a, b) => a > b ? a : b).clamp(1, 24);
-    final maxMeals = dailyStats.map((d) => d.mealsCount.toDouble()).reduce((a, b) => a > b ? a : b).clamp(1, 6);
-    final maxOther = dailyStats.map((d) => d.otherActivitiesCount.toDouble()).reduce((a, b) => a > b ? a : b).clamp(1, 20);
+    final maxSleep = dailyStats
+        .map((d) => d.sleepMinutes / 60)
+        .reduce((a, b) => a > b ? a : b)
+        .clamp(1, 24);
+    final maxMeals = dailyStats
+        .map((d) => d.mealsCount.toDouble())
+        .reduce((a, b) => a > b ? a : b)
+        .clamp(1, 6);
+    final maxOther = dailyStats
+        .map((d) => d.otherActivitiesCount.toDouble())
+        .reduce((a, b) => a > b ? a : b)
+        .clamp(1, 20);
 
     return Card(
       child: SizedBox(
@@ -160,7 +185,8 @@ class _SimpleTrendChart extends StatelessWidget {
                             alignment: Alignment.bottomCenter,
                             child: Container(
                               width: 4,
-                              height: 50 * (day.otherActivitiesCount / maxOther),
+                              height:
+                                  50 * (day.otherActivitiesCount / maxOther),
                               decoration: BoxDecoration(
                                 color: AppTheme.accentBlue,
                                 borderRadius: BorderRadius.circular(2),
@@ -196,7 +222,9 @@ class _TrendSummaryCard extends StatelessWidget {
               ? 'Aucun signal de déclin marqué détecté sur la période récente.'
               : 'Signaux de déclin détectés: ${declining.map((m) => m.label).join(', ')}.',
           style: TextStyle(
-            color: declining.isEmpty ? AppTheme.textPrimary : AppTheme.activityOrange,
+            color: declining.isEmpty
+                ? AppTheme.textPrimary
+                : AppTheme.activityOrange,
             height: 1.4,
           ),
         ),

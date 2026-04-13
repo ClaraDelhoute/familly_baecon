@@ -8,46 +8,46 @@ final roomsProvider = Provider<List<Room>>((ref) {
     // CUISINE (haut gauche - beige)
     Room(
       id: 'kitchen',
-      name: 'CUISINE\n(6.2m²)',
+      name: 'CUISINE',
       position: const Offset(120, 120),
       size: const Size(100, 70),
-      color: const Color(0xFFFEF3C7), // Beige
+      color: const Color(0xFFF59E0B), // Orange soutenu
     ),
 
     // SALON (haut droit - bleu clair)
     Room(
       id: 'living',
-      name: 'SALON\n(6.2m²)',
+      name: 'SALON',
       position: const Offset(220, 120),
       size: const Size(100, 70),
-      color: const Color(0xFFBFDBFE), // Bleu clair
+      color: const Color(0xFF3B82F6), // Bleu
     ),
 
     // CHAMBRE (bas gauche - rose)
     Room(
       id: 'bedroom',
-      name: 'CHAMBRE\n(6.2m²)',
+      name: 'CHAMBRE',
       position: const Offset(120, 220),
       size: const Size(100, 70),
-      color: const Color(0xFFFCE7F3), // Rose
+      color: const Color(0xFF8B5CF6), // Violet
     ),
 
     // DB - Dressing/Bain (bas centre)
     Room(
       id: 'bathroom',
-      name: 'DB\n(3.8m²)',
+      name: 'DB',
       position: const Offset(170, 220),
       size: const Size(70, 70),
-      color: const Color(0xFFF0FDF4), // Vert clair
+      color: const Color(0xFF10B981), // Vert émeraude
     ),
 
     // WC (bas droit - vert)
     Room(
       id: 'wc',
-      name: 'WC\n(2.5m²)',
+      name: 'WC',
       position: const Offset(230, 220),
       size: const Size(70, 70),
-      color: const Color(0xFFF0FDF4), // Vert clair
+      color: const Color(0xFFEF4444), // Rouge
     ),
   ];
 });
@@ -162,9 +162,10 @@ final selectedRoomProvider = StateProvider<String?>((ref) => null);
 final lastActiveSensorProvider = StateProvider<String?>((ref) => null);
 
 /// Provider pour activer un capteur (anomalie détectée)
-final activateSensorProvider = StateNotifierProvider<SensorActivationNotifier, String?>((ref) {
-  return SensorActivationNotifier();
-});
+final activateSensorProvider =
+    StateNotifierProvider<SensorActivationNotifier, String?>((ref) {
+      return SensorActivationNotifier();
+    });
 
 class SensorActivationNotifier extends StateNotifier<String?> {
   SensorActivationNotifier() : super(null);
@@ -177,4 +178,3 @@ class SensorActivationNotifier extends StateNotifier<String?> {
     state = null;
   }
 }
-

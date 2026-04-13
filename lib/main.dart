@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:familly_baecon/core/services/app_badge_service.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/splash/presentation/views/splash_screen.dart';
 import 'package:familly_baecon/features/home/presentation/views/home_page.dart';
 import 'package:familly_baecon/features/journal/presentation/views/journal_page.dart';
 import 'package:familly_baecon/features/analyse/presentation/views/analyse_page.dart';
 import 'package:familly_baecon/features/anomalies/presentation/views/anomalies_page.dart';
+import 'package:familly_baecon/features/plan/presentation/views/plan_page.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AppBadgeService.initialize();
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -20,9 +24,7 @@ class MyApp extends StatelessWidget {
       title: 'FamilyBeacon',
       theme: AppTheme.darkTheme,
       home: const SplashScreen(),
-      routes: {
-        '/home': (context) => const FamilyBeaconApp(),
-      },
+      routes: {'/home': (context) => const FamilyBeaconApp()},
       debugShowCheckedModeBanner: false,
     );
   }
@@ -41,8 +43,9 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
   late final List<Widget> _pages = [
     HomePage(onNavigate: _navigateTo),
     const JournalPage(),
-    const AnalysePage(),
     const AnomaliesPage(),
+    const PlanPage(),
+    const AnalysePage(),
   ];
 
   void _navigateTo(int index) {
@@ -63,22 +66,17 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
           });
         },
         destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home),
-            label: 'Accueil',
-          ),
+          NavigationDestination(icon: Icon(Icons.home), label: 'Accueil'),
           NavigationDestination(
             icon: Icon(Icons.calendar_today),
             label: 'Journal',
           ),
           NavigationDestination(
-            icon: Icon(Icons.show_chart),
-            label: 'Analyse',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.warning_amber_rounded),
             label: 'Anomalies',
           ),
+          NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Plan'),
+          NavigationDestination(icon: Icon(Icons.show_chart), label: 'Analyse'),
         ],
       ),
     );

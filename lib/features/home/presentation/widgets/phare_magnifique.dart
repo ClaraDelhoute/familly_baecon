@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_indicator.dart';
 import 'dart:math' as Math;
+import 'package:familly_baecon/core/widgets/animated_lighthouse.dart';
 
 /// Widget affichant le grand phare magnifique de la modal pour la home page
 class PhareMagnifique extends StatefulWidget {
@@ -92,8 +93,11 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
     if (!sameRoom) return ActivityStatus.critical;
     final expectedDuration = exp.endAt?.difference(exp.startAt).inMinutes ?? 0;
     if (expectedDuration == 0) return ActivityStatus.critical;
-    final overlapStart = exp.startAt.isAfter(obs.startAt) ? exp.startAt : obs.startAt;
-    final overlapEnd = (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
+    final overlapStart = exp.startAt.isAfter(obs.startAt)
+        ? exp.startAt
+        : obs.startAt;
+    final overlapEnd =
+        (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
         ? (exp.endAt ?? exp.startAt)
         : (obs.endAt ?? obs.startAt);
     final overlap = overlapEnd.isAfter(overlapStart)
@@ -130,7 +134,8 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
     final status = _overallStatus();
     final color = _colorFor(status);
 
-    final showGyrophareAsset = widget.forceGyrophare || status != ActivityStatus.ok;
+    final showGyrophareAsset =
+        widget.forceGyrophare || status != ActivityStatus.ok;
     if (showGyrophareAsset) {
       return Center(
         child: Container(
@@ -138,10 +143,7 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
           height: 210,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: color.withValues(alpha: 0.35),
-              width: 2,
-            ),
+            border: Border.all(color: color.withValues(alpha: 0.35), width: 2),
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.2),
@@ -160,28 +162,8 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.asset(
-                        'assets/animations/gyrophare.gif',
-                        fit: BoxFit.contain,
-                        gaplessPlayback: true,
-                        color: color.withValues(alpha: 0.92),
-                        colorBlendMode: BlendMode.color,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: SizedBox(
-                              width: 200,
-                              height: 200,
-                              child: FittedBox(
-                                fit: BoxFit.contain,
-                                child: SizedBox(
-                                  width: 260,
-                                  height: 320,
-                                  child: _buildLegacyLighthouse(color),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
+                      Center(
+                        child: AnimatedLighthouse(color: color, size: 190),
                       ),
                     ],
                   ),
@@ -206,184 +188,171 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
     return Stack(
       alignment: Alignment.center,
       children: [
-            // Aura extérieure pulsante
-            AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return Container(
-                  width: 200 + (_pulseController.value * 40),
-                  height: 200 + (_pulseController.value * 40),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        color.withOpacity(0.25 - (_pulseController.value * 0.1)),
-                        color.withOpacity(0.1),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
+        // Aura extérieure pulsante
+        AnimatedBuilder(
+          animation: _pulseController,
+          builder: (context, child) {
+            return Container(
+              width: 200 + (_pulseController.value * 40),
+              height: 200 + (_pulseController.value * 40),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    color.withOpacity(0.25 - (_pulseController.value * 0.1)),
+                    color.withOpacity(0.1),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
 
-            // Faisceaux de lumière rotatifs
-            AnimatedBuilder(
-              animation: _rotationController,
-              builder: (context, child) {
-                return Stack(
-                  alignment: Alignment.center,
+        // Faisceaux de lumière rotatifs
+        AnimatedBuilder(
+          animation: _rotationController,
+          builder: (context, child) {
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                // Faisceau 1
+                Transform.rotate(
+                  angle: _rotationController.value * 2 * Math.pi,
+                  child: LightBeamWidget(color: color, angle: -Math.pi / 2),
+                ),
+                // Faisceau 2
+                Transform.rotate(
+                  angle: _rotationController.value * 2 * Math.pi,
+                  child: LightBeamWidget(color: color, angle: Math.pi / 6),
+                ),
+                // Faisceau 3
+                Transform.rotate(
+                  angle: _rotationController.value * 2 * Math.pi,
+                  child: LightBeamWidget(color: color, angle: -Math.pi / 6),
+                ),
+              ],
+            );
+          },
+        ),
+
+        // Phare - Structure 3D
+        Positioned(
+          bottom: 0,
+          child: Column(
+            children: [
+              // Chambre de lumière
+              Container(
+                width: 85,
+                height: 55,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F2B47),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(18),
+                    topRight: Radius.circular(18),
+                  ),
+                  border: Border.all(color: const Color(0xFF1E4A70), width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
                   children: [
-                    // Faisceau 1
-                    Transform.rotate(
-                      angle: _rotationController.value * 2 * Math.pi,
-                      child: LightBeamWidget(
-                        color: color,
-                        angle: -Math.pi / 2,
-                      ),
+                    // Lumière pulsante
+                    AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        return Center(
+                          child: Container(
+                            width: 55 + (_pulseController.value * 12),
+                            height: 40 + (_pulseController.value * 10),
+                            decoration: BoxDecoration(
+                              gradient: RadialGradient(
+                                colors: [
+                                  color,
+                                  color.withOpacity(
+                                    0.6 - (_pulseController.value * 0.2),
+                                  ),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(25),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: color.withOpacity(0.9),
+                                  blurRadius:
+                                      25 + (_pulseController.value * 20),
+                                  spreadRadius:
+                                      2 + (_pulseController.value * 8),
+                                ),
+                                BoxShadow(
+                                  color: color.withOpacity(0.4),
+                                  blurRadius:
+                                      50 + (_pulseController.value * 25),
+                                  spreadRadius:
+                                      5 + (_pulseController.value * 10),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    // Faisceau 2
-                    Transform.rotate(
-                      angle: _rotationController.value * 2 * Math.pi,
-                      child: LightBeamWidget(
-                        color: color,
-                        angle: Math.pi / 6,
-                      ),
-                    ),
-                    // Faisceau 3
-                    Transform.rotate(
-                      angle: _rotationController.value * 2 * Math.pi,
-                      child: LightBeamWidget(
-                        color: color,
-                        angle: -Math.pi / 6,
+                    // Reflet vitre
+                    Positioned(
+                      top: 4,
+                      child: Container(
+                        width: 70,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.white.withOpacity(0.4),
+                              Colors.transparent,
+                            ],
+                          ),
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(12),
+                            topRight: Radius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-
-            // Phare - Structure 3D
-            Positioned(
-              bottom: 0,
-              child: Column(
-                children: [
-                  // Chambre de lumière
-                  Container(
-                    width: 85,
-                    height: 55,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F2B47),
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(18),
-                        topRight: Radius.circular(18),
-                      ),
-                      border: Border.all(
-                        color: const Color(0xFF1E4A70),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.4),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
-                        // Lumière pulsante
-                        AnimatedBuilder(
-                          animation: _pulseController,
-                          builder: (context, child) {
-                            return Center(
-                              child: Container(
-                                width: 55 + (_pulseController.value * 12),
-                                height: 40 + (_pulseController.value * 10),
-                                decoration: BoxDecoration(
-                                  gradient: RadialGradient(
-                                    colors: [
-                                      color,
-                                      color.withOpacity(0.6 - (_pulseController.value * 0.2)),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(25),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: color.withOpacity(0.9),
-                                      blurRadius: 25 + (_pulseController.value * 20),
-                                      spreadRadius: 2 + (_pulseController.value * 8),
-                                    ),
-                                    BoxShadow(
-                                      color: color.withOpacity(0.4),
-                                      blurRadius: 50 + (_pulseController.value * 25),
-                                      spreadRadius: 5 + (_pulseController.value * 10),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        // Reflet vitre
-                        Positioned(
-                          top: 4,
-                          child: Container(
-                            width: 70,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  Colors.white.withOpacity(0.4),
-                                  Colors.transparent,
-                                ],
-                              ),
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(12),
-                                topRight: Radius.circular(12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  // Tour principale
-                  Container(
-                    width: 82,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1e293b),
-                      border: Border.all(
-                        color: Colors.grey.shade700,
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  // Base du phare
-                  Container(
-                    width: 75,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0f172a),
-                      border: Border.all(
-                        color: Colors.grey.shade800,
-                        width: 2,
-                      ),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(3),
-                        bottomRight: Radius.circular(3),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
-        );
+              const SizedBox(height: 20),
+              // Tour principale
+              Container(
+                width: 82,
+                height: 45,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1e293b),
+                  border: Border.all(color: Colors.grey.shade700, width: 2),
+                ),
+              ),
+              // Base du phare
+              Container(
+                width: 75,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0f172a),
+                  border: Border.all(color: Colors.grey.shade800, width: 2),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(3),
+                    bottomRight: Radius.circular(3),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
-

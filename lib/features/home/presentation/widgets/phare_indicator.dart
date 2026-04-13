@@ -28,6 +28,7 @@ class _PhareIndicatorState extends State<PhareIndicator>
     with TickerProviderStateMixin {
   late AnimationController _rotationController;
   late AnimationController _pulseController;
+  ActivityStatus? _lastAppliedStatus;
 
   @override
   void initState() {
@@ -43,9 +44,14 @@ class _PhareIndicatorState extends State<PhareIndicator>
     )..repeat(reverse: true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final status = _overallStatus();
-      _updateAppBadge(status);
+      _syncAppBadge();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant PhareIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncAppBadge();
   }
 
   @override
@@ -61,17 +67,20 @@ class _PhareIndicatorState extends State<PhareIndicator>
     if (!sameRoom) return ActivityStatus.critical;
     final expectedDuration = exp.endAt?.difference(exp.startAt).inMinutes ?? 0;
     if (expectedDuration == 0) return ActivityStatus.critical;
-    final overlapStart = exp.startAt.isAfter(obs.startAt) ? exp.startAt : obs.startAt;
-    final overlapEnd = (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
+    final overlapStart = exp.startAt.isAfter(obs.startAt)
+        ? exp.startAt
+        : obs.startAt;
+    final overlapEnd =
+        (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
         ? (exp.endAt ?? exp.startAt)
         : (obs.endAt ?? obs.startAt);
     final overlap = overlapEnd.isAfter(overlapStart)
         ? overlapEnd.difference(overlapStart).inMinutes
         : 0;
     final ratio = overlap / expectedDuration;
-    if (ratio >= 0.85) return ActivityStatus.ok;  // 85% pour vert
-    if (ratio >= 0.50) return ActivityStatus.warning;  // 50-85% pour orange
-    return ActivityStatus.critical;  // <50% pour rouge
+    if (ratio >= 0.85) return ActivityStatus.ok; // 85% pour vert
+    if (ratio >= 0.50) return ActivityStatus.warning; // 50-85% pour orange
+    return ActivityStatus.critical; // <50% pour rouge
   }
 
   ActivityStatus _overallStatus() {
@@ -165,6 +174,13 @@ class _PhareIndicatorState extends State<PhareIndicator>
     }
   }
 
+  void _syncAppBadge() {
+    final status = _overallStatus();
+    if (_lastAppliedStatus == status) return;
+    _lastAppliedStatus = status;
+    _updateAppBadge(status);
+  }
+
   void _showPhareModal(BuildContext context) {
     final status = _overallStatus();
     final color = _colorFor(status);
@@ -186,16 +202,16 @@ class _PhareIndicatorState extends State<PhareIndicator>
               backgroundColor: Colors.white,
               content: Container(
                 width: MediaQuery.of(context).size.width * 0.82,
-                padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 32),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 48,
+                  horizontal: 32,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(28),
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white,
-                      Colors.grey.shade50,
-                    ],
+                    colors: [Colors.white, Colors.grey.shade50],
                   ),
                 ),
                 child: Column(
@@ -219,7 +235,9 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                   shape: BoxShape.circle,
                                   gradient: RadialGradient(
                                     colors: [
-                                      color.withOpacity(0.25 - (_pulseController.value * 0.1)),
+                                      color.withOpacity(
+                                        0.25 - (_pulseController.value * 0.1),
+                                      ),
                                       color.withOpacity(0.1),
                                       Colors.transparent,
                                     ],
@@ -238,7 +256,8 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                 children: [
                                   // Faisceau 1
                                   Transform.rotate(
-                                    angle: _rotationController.value * 2 * Math.pi,
+                                    angle:
+                                        _rotationController.value * 2 * Math.pi,
                                     child: LightBeamWidget(
                                       color: color,
                                       angle: -Math.pi / 2,
@@ -246,7 +265,8 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                   ),
                                   // Faisceau 2
                                   Transform.rotate(
-                                    angle: _rotationController.value * 2 * Math.pi,
+                                    angle:
+                                        _rotationController.value * 2 * Math.pi,
                                     child: LightBeamWidget(
                                       color: color,
                                       angle: Math.pi / 6,
@@ -254,7 +274,8 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                   ),
                                   // Faisceau 3
                                   Transform.rotate(
-                                    angle: _rotationController.value * 2 * Math.pi,
+                                    angle:
+                                        _rotationController.value * 2 * Math.pi,
                                     child: LightBeamWidget(
                                       color: color,
                                       angle: -Math.pi / 6,
@@ -300,26 +321,56 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                         builder: (context, child) {
                                           return Center(
                                             child: Container(
-                                              width: 55 + (_pulseController.value * 12),
-                                              height: 40 + (_pulseController.value * 10),
+                                              width:
+                                                  55 +
+                                                  (_pulseController.value * 12),
+                                              height:
+                                                  40 +
+                                                  (_pulseController.value * 10),
                                               decoration: BoxDecoration(
                                                 gradient: RadialGradient(
                                                   colors: [
                                                     color,
-                                                    color.withOpacity(0.6 - (_pulseController.value * 0.2)),
+                                                    color.withOpacity(
+                                                      0.6 -
+                                                          (_pulseController
+                                                                  .value *
+                                                              0.2),
+                                                    ),
                                                   ],
                                                 ),
-                                                borderRadius: BorderRadius.circular(25),
+                                                borderRadius:
+                                                    BorderRadius.circular(25),
                                                 boxShadow: [
                                                   BoxShadow(
-                                                    color: color.withOpacity(0.9),
-                                                    blurRadius: 25 + (_pulseController.value * 20),
-                                                    spreadRadius: 2 + (_pulseController.value * 8),
+                                                    color: color.withOpacity(
+                                                      0.9,
+                                                    ),
+                                                    blurRadius:
+                                                        25 +
+                                                        (_pulseController
+                                                                .value *
+                                                            20),
+                                                    spreadRadius:
+                                                        2 +
+                                                        (_pulseController
+                                                                .value *
+                                                            8),
                                                   ),
                                                   BoxShadow(
-                                                    color: color.withOpacity(0.4),
-                                                    blurRadius: 50 + (_pulseController.value * 25),
-                                                    spreadRadius: 5 + (_pulseController.value * 10),
+                                                    color: color.withOpacity(
+                                                      0.4,
+                                                    ),
+                                                    blurRadius:
+                                                        50 +
+                                                        (_pulseController
+                                                                .value *
+                                                            25),
+                                                    spreadRadius:
+                                                        5 +
+                                                        (_pulseController
+                                                                .value *
+                                                            10),
                                                   ),
                                                 ],
                                               ),
@@ -342,10 +393,11 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                                 Colors.transparent,
                                               ],
                                             ),
-                                            borderRadius: const BorderRadius.only(
-                                              topLeft: Radius.circular(12),
-                                              topRight: Radius.circular(12),
-                                            ),
+                                            borderRadius:
+                                                const BorderRadius.only(
+                                                  topLeft: Radius.circular(12),
+                                                  topRight: Radius.circular(12),
+                                                ),
                                           ),
                                         ),
                                       ),
@@ -379,11 +431,13 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                     ],
                                   ),
                                   child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
                                     children: [
                                       // Fenêtres supérieures
                                       Row(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
                                         children: [
                                           _buildWindow(size: 8),
                                           const SizedBox(width: 24),
@@ -396,10 +450,14 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                         height: 22,
                                         decoration: BoxDecoration(
                                           color: const Color(0xFF8B6F47),
-                                          borderRadius: BorderRadius.circular(4),
+                                          borderRadius: BorderRadius.circular(
+                                            4,
+                                          ),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.25),
+                                              color: Colors.black.withOpacity(
+                                                0.25,
+                                              ),
                                               blurRadius: 4,
                                               offset: const Offset(1, 2),
                                             ),
@@ -482,7 +540,10 @@ class _PhareIndicatorState extends State<PhareIndicator>
                             },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.grey.shade600,
-                              side: BorderSide(color: Colors.grey.shade300, width: 1.5),
+                              side: BorderSide(
+                                color: Colors.grey.shade300,
+                                width: 1.5,
+                              ),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
@@ -561,10 +622,7 @@ class _PhareIndicatorState extends State<PhareIndicator>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                Colors.white,
-                Colors.grey.shade50,
-              ],
+              colors: [Colors.white, Colors.grey.shade50],
             ),
           ),
           child: SingleChildScrollView(
@@ -578,9 +636,8 @@ class _PhareIndicatorState extends State<PhareIndicator>
                   children: [
                     Text(
                       'Détails des anomalies',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
@@ -605,7 +662,11 @@ class _PhareIndicatorState extends State<PhareIndicator>
                 Builder(
                   builder: (context) {
                     // Chercher la première anomalie
-                    for (int index = 0; index < widget.expected.length; index++) {
+                    for (
+                      int index = 0;
+                      index < widget.expected.length;
+                      index++
+                    ) {
                       final exp = widget.expected[index];
                       Activity? match;
                       // Chercher d'abord un match EXACT (pièce ET type)
@@ -673,7 +734,10 @@ class _PhareIndicatorState extends State<PhareIndicator>
                                     ),
                                   ),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: color.withOpacity(0.2),
                                       borderRadius: BorderRadius.circular(6),
@@ -785,20 +849,13 @@ class LightBeamWidget extends StatelessWidget {
   final Color color;
   final double angle;
 
-  const LightBeamWidget({
-    super.key,
-    required this.color,
-    required this.angle,
-  });
+  const LightBeamWidget({super.key, required this.color, required this.angle});
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       size: const Size(280, 320),
-      painter: LightBeamPainter(
-        color: color,
-        angle: angle,
-      ),
+      painter: LightBeamPainter(color: color, angle: angle),
     );
   }
 }
@@ -932,17 +989,20 @@ class PhareStatusIndicator extends StatelessWidget {
     if (!sameRoom) return ActivityStatus.critical;
     final expectedDuration = exp.endAt?.difference(exp.startAt).inMinutes ?? 0;
     if (expectedDuration == 0) return ActivityStatus.critical;
-    final overlapStart = exp.startAt.isAfter(obs.startAt) ? exp.startAt : obs.startAt;
-    final overlapEnd = (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
+    final overlapStart = exp.startAt.isAfter(obs.startAt)
+        ? exp.startAt
+        : obs.startAt;
+    final overlapEnd =
+        (exp.endAt ?? exp.startAt).isBefore(obs.endAt ?? obs.startAt)
         ? (exp.endAt ?? exp.startAt)
         : (obs.endAt ?? obs.startAt);
     final overlap = overlapEnd.isAfter(overlapStart)
         ? overlapEnd.difference(overlapStart).inMinutes
         : 0;
     final ratio = overlap / expectedDuration;
-    if (ratio >= 0.85) return ActivityStatus.ok;  // 85% pour vert
-    if (ratio >= 0.50) return ActivityStatus.warning;  // 50-85% pour orange
-    return ActivityStatus.critical;  // <50% pour rouge
+    if (ratio >= 0.85) return ActivityStatus.ok; // 85% pour vert
+    if (ratio >= 0.50) return ActivityStatus.warning; // 50-85% pour orange
+    return ActivityStatus.critical; // <50% pour rouge
   }
 
   Color _colorFor(ActivityStatus status) {
@@ -1009,15 +1069,9 @@ class PhareStatusIndicator extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            color.withOpacity(0.12),
-            color.withOpacity(0.06),
-          ],
+          colors: [color.withOpacity(0.12), color.withOpacity(0.06)],
         ),
-        border: Border.all(
-          color: color.withOpacity(0.25),
-          width: 1.5,
-        ),
+        border: Border.all(color: color.withOpacity(0.25), width: 1.5),
       ),
       child: Row(
         children: [
@@ -1074,11 +1128,7 @@ class PhareStatusIndicator extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           // Flèche
-          Icon(
-            Icons.arrow_forward_rounded,
-            color: color,
-            size: 20,
-          ),
+          Icon(Icons.arrow_forward_rounded, color: color, size: 20),
         ],
       ),
     );

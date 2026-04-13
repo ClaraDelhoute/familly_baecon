@@ -4,6 +4,7 @@ import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
 import 'package:familly_baecon/features/anomalies/presentation/views/anomaly_detail_page.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 
 class AnomaliesPage extends ConsumerWidget {
   const AnomaliesPage({super.key});
@@ -23,7 +24,21 @@ class AnomaliesPage extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Anomalies')),
+      appBar: AppBar(
+        title: const Text('Anomalies'),
+        actions: [
+          IconButton(
+            tooltip: 'Paramètres',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+            icon: const Icon(Icons.settings),
+          ),
+        ],
+      ),
       body: anomalies.isEmpty
           ? Center(
               child: Text(
@@ -44,7 +59,9 @@ class AnomaliesPage extends ConsumerWidget {
                         : (repeated ? Icons.repeat : Icons.fiber_new),
                     color: isHigh
                         ? AppTheme.activityRed
-                        : (repeated ? AppTheme.activityOrange : AppTheme.activityGreen),
+                        : (repeated
+                              ? AppTheme.activityOrange
+                              : AppTheme.activityGreen),
                   ),
                   title: Text(
                     anomaly.message,
@@ -58,7 +75,10 @@ class AnomaliesPage extends ConsumerWidget {
                   ),
                   trailing: Text(
                     _fmtTimeFrance(anomaly.simulatedAt),
-                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                   onTap: () {
                     Navigator.push(

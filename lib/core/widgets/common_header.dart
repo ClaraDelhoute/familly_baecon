@@ -5,18 +5,25 @@ class CommonHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? actionWidget;
+  final bool compact;
 
   const CommonHeader({
     super.key,
     required this.title,
     this.subtitle,
     this.actionWidget,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        compact ? 42 : 60,
+        20,
+        compact ? 14 : 24,
+      ),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppTheme.accentBlue, AppTheme.accentCyan],
@@ -34,8 +41,8 @@ class CommonHeader extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 24,
+                    style: TextStyle(
+                      fontSize: compact ? 21 : 24,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
@@ -46,15 +53,15 @@ class CommonHeader extends StatelessWidget {
                       child: Text(
                         subtitle!,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.8),
+                          fontSize: compact ? 13 : 14,
+                          color: Colors.white.withValues(alpha: 0.8),
                         ),
                       ),
                     ),
                 ],
               ),
             ),
-            if (actionWidget != null) actionWidget!,
+            ?actionWidget,
           ],
         ),
       ),
