@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:familly_baecon/core/providers/accessibility_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
@@ -15,6 +16,18 @@ class SettingsPage extends ConsumerWidget {
     final lastSyncAt = ref.watch(backendLastSyncAtProvider);
     final forceSync = ref.watch(forceBackendSyncProvider);
     final testMode = ref.watch(testModeProvider);
+    final accessibility = ref.watch(accessibilitySettingsProvider);
+    final accessibilityNotifier = ref.read(
+      accessibilitySettingsProvider.notifier,
+    );
+    final iconSize = Theme.of(context).iconTheme.size ?? 24;
+    final appTypography = Theme.of(context).extension<AppTypography>();
+    final sectionTitleStyle =
+        appTypography?.sectionLabel.copyWith(color: AppTheme.textSecondary) ??
+        Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppTheme.textSecondary,
+          fontWeight: FontWeight.w700,
+        );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Paramètres')),
@@ -25,7 +38,7 @@ class SettingsPage extends ConsumerWidget {
             child: ListTile(
               leading: Icon(
                 Icons.circle,
-                size: 12,
+                size: (iconSize * 0.5).clamp(12, 20),
                 color: serverConnected
                     ? Colors.greenAccent
                     : Colors.orangeAccent,
@@ -58,19 +71,76 @@ class SettingsPage extends ConsumerWidget {
                   );
                 }
               },
-              icon: const Icon(Icons.refresh_rounded),
+              icon: Icon(Icons.refresh_rounded, size: iconSize),
               label: const Text('Reconnexion / mise à jour serveur'),
             ),
           ),
           const SizedBox(height: 20),
-          Text(
-            'Débug anomalies',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: AppTheme.textSecondary,
+          Text('Accessibilité', style: sectionTitleStyle),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text('Contraste renforcé'),
+                    subtitle: const Text(
+                      'Améliore la lisibilité des textes et des contours',
+                    ),
+                    value: accessibility.highContrast,
+                    onChanged: (value) {
+                      accessibilityNotifier.setHighContrast(value);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.text_fields, size: iconSize),
+                    title: const Text('Taille du texte'),
+                    subtitle: Text(
+                      '${(accessibility.textScaleFactor * 100).round()}%',
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Slider(
+                      value: accessibility.textScaleFactor,
+                      min: 0.8,
+                      max: 1.6,
+                      divisions: 8,
+                      label:
+                          '${(accessibility.textScaleFactor * 100).round()}%',
+                      onChanged: (value) {
+                        accessibilityNotifier.setTextScaleFactor(value);
+                      },
+                    ),
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.touch_app, size: iconSize),
+                    title: const Text('Taille des icônes'),
+                    subtitle: Text(
+                      '${(accessibility.iconScaleFactor * 100).round()}%',
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Slider(
+                      value: accessibility.iconScaleFactor,
+                      min: 0.8,
+                      max: 1.8,
+                      divisions: 10,
+                      label:
+                          '${(accessibility.iconScaleFactor * 100).round()}%',
+                      onChanged: (value) {
+                        accessibilityNotifier.setIconScaleFactor(value);
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+          const SizedBox(height: 20),
+          Text('Débug anomalies', style: sectionTitleStyle),
           const SizedBox(height: 8),
           Card(
             child: RadioGroup<TestMode>(

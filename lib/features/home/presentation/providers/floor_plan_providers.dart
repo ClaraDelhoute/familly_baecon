@@ -2,52 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
 
+const double _planUnitScale = 100; // 1 mètre = 100 unités canvas
+
+Offset _metersToOffset(double x, double y) =>
+    Offset(x * _planUnitScale, y * _planUnitScale);
+Size _metersToSize(double width, double height) =>
+    Size(width * _planUnitScale, height * _planUnitScale);
+
 /// Provider pour les pièces du logement
 final roomsProvider = Provider<List<Room>>((ref) {
   return [
-    // CUISINE (haut gauche - beige)
+    // Données alignées sur le plan JSON (5m x 5m)
     Room(
-      id: 'kitchen',
+      id: 'cuisine',
       name: 'CUISINE',
-      position: const Offset(120, 120),
-      size: const Size(100, 70),
-      color: const Color(0xFFF59E0B), // Orange soutenu
+      position: _metersToOffset(1.25, 3.75),
+      size: _metersToSize(2.5, 2.5),
+      color: const Color(0xFFE8E2D0),
     ),
-
-    // SALON (haut droit - bleu clair)
     Room(
-      id: 'living',
+      id: 'salon',
       name: 'SALON',
-      position: const Offset(220, 120),
-      size: const Size(100, 70),
-      color: const Color(0xFF3B82F6), // Bleu
+      position: _metersToOffset(3.75, 3.75),
+      size: _metersToSize(2.5, 2.5),
+      color: const Color(0xFFCFD8E3),
     ),
-
-    // CHAMBRE (bas gauche - rose)
     Room(
-      id: 'bedroom',
+      id: 'chambre',
       name: 'CHAMBRE',
-      position: const Offset(120, 220),
-      size: const Size(100, 70),
-      color: const Color(0xFF8B5CF6), // Violet
+      position: _metersToOffset(1.25, 1.25),
+      size: _metersToSize(2.5, 2.5),
+      color: const Color(0xFFE6CFCF),
     ),
-
-    // DB - Dressing/Bain (bas centre)
     Room(
-      id: 'bathroom',
-      name: 'DB',
-      position: const Offset(170, 220),
-      size: const Size(70, 70),
-      color: const Color(0xFF10B981), // Vert émeraude
+      id: 'sdb',
+      name: 'SALLE DE BAIN',
+      position: _metersToOffset(3.125, 1.25),
+      size: _metersToSize(1.25, 2.5),
+      color: const Color(0xFFD7E0D7),
     ),
-
-    // WC (bas droit - vert)
     Room(
       id: 'wc',
       name: 'WC',
-      position: const Offset(230, 220),
-      size: const Size(70, 70),
-      color: const Color(0xFFEF4444), // Rouge
+      position: _metersToOffset(4.375, 1.25),
+      size: _metersToSize(1.25, 2.5),
+      color: const Color(0xFFDFE4DF),
     ),
   ];
 });
@@ -55,101 +54,89 @@ final roomsProvider = Provider<List<Room>>((ref) {
 /// Provider pour les capteurs
 final sensorsProvider = Provider<List<Sensor>>((ref) {
   return [
-    // Cuisine
     Sensor(
       id: 'M001',
       label: 'M001',
-      position: const Offset(100, 90),
+      position: _metersToOffset(1.0, 4.6),
       isMotionDetector: true,
     ),
     Sensor(
       id: 'M002',
       label: 'M002',
-      position: const Offset(130, 110),
+      position: _metersToOffset(1.8, 3.9),
       isMotionDetector: true,
     ),
-
-    // Salon
     Sensor(
       id: 'M003',
       label: 'M003',
-      position: const Offset(210, 125),
+      position: _metersToOffset(3.1, 3.1),
       isMotionDetector: true,
     ),
     Sensor(
       id: 'M004',
       label: 'M004',
-      position: const Offset(200, 100),
+      position: _metersToOffset(2.9, 4.4),
       isMotionDetector: true,
     ),
     Sensor(
       id: 'M005',
       label: 'M005',
-      position: const Offset(240, 110),
+      position: _metersToOffset(3.9, 4.1),
       isMotionDetector: true,
     ),
-
-    // Entrée
-    Sensor(
-      id: 'D001',
-      label: 'D001',
-      position: const Offset(260, 115),
-      isMotionDetector: false,
-    ),
-
-    // Chambre
     Sensor(
       id: 'M006',
       label: 'M006',
-      position: const Offset(100, 200),
+      position: _metersToOffset(0.4, 2.1),
       isMotionDetector: true,
     ),
     Sensor(
       id: 'M007',
       label: 'M007',
-      position: const Offset(130, 220),
+      position: _metersToOffset(1.9, 0.7),
       isMotionDetector: true,
     ),
-
-    // DB
     Sensor(
       id: 'M008',
       label: 'M008',
-      position: const Offset(160, 225),
+      position: _metersToOffset(3.0, 0.6),
       isMotionDetector: true,
     ),
     Sensor(
       id: 'M009',
       label: 'M009',
-      position: const Offset(180, 210),
+      position: _metersToOffset(3.1, 1.4),
       isMotionDetector: true,
     ),
-    Sensor(
-      id: 'D006',
-      label: 'D006',
-      position: const Offset(200, 240),
-      isMotionDetector: false,
-    ),
-
-    // WC
     Sensor(
       id: 'M010',
       label: 'M010',
-      position: const Offset(240, 215),
+      position: _metersToOffset(4.4, 0.9),
       isMotionDetector: true,
     ),
-
-    // Détecteurs portes/capteurs distributin
+    // Portes (détecteurs)
     Sensor(
-      id: 'D003',
-      label: 'D003',
-      position: const Offset(150, 140),
+      id: 'D001',
+      label: 'D001',
+      position: _metersToOffset(5.0, 4.0),
       isMotionDetector: false,
     ),
     Sensor(
-      id: 'D008',
-      label: 'D008',
-      position: const Offset(170, 190),
+      id: 'D002',
+      label: 'D002',
+      position: _metersToOffset(2.5, 3.7),
+      isMotionDetector: false,
+    ),
+    Sensor(
+      id: 'D003',
+      label: 'D003',
+      position: _metersToOffset(2.5, 1.2),
+      isMotionDetector: false,
+    ),
+    Sensor(
+      id: 'D004',
+      label: 'D004',
+      position: _metersToOffset(4.0, 1.2),
       isMotionDetector: false,
     ),
   ];

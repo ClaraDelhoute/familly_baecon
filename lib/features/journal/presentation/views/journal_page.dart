@@ -5,7 +5,6 @@ import 'package:familly_baecon/features/journal/presentation/providers/journal_p
 import 'package:familly_baecon/features/journal/presentation/widgets/calendar_timeline.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
-import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 
 class JournalPage extends ConsumerStatefulWidget {
@@ -26,37 +25,47 @@ class _JournalPageState extends ConsumerState<JournalPage> {
   Widget build(BuildContext context) {
     final ref = this.ref;
     final observedAsync = ref.watch(liveObservedActivitiesProvider);
-    final anomaliesAsync = ref.watch(liveAnomaliesProvider);
     final observed = observedAsync.when(
       data: (items) => items,
       loading: () => const <Activity>[],
       error: (error, stackTrace) => const <Activity>[],
     );
     final observedLocal = observed.map(_toLocalActivity).toList();
-    final anomalies = anomaliesAsync.when(
-      data: (items) => items,
-      loading: () => const <AnomalyHistoryModel>[],
-      error: (error, stackTrace) => const <AnomalyHistoryModel>[],
-    );
-    final simulatedNow = _simulatedNow(observedLocal, anomalies);
-    final defaultDay = DateTime(
-      simulatedNow.year,
-      simulatedNow.month,
-      simulatedNow.day,
-    );
+    final defaultDay = _defaultObservedDay(observedLocal);
     final selectedDay = _selectedDate ?? defaultDay;
 
     final observedForDay = _filterActivitiesByDay(observedLocal, selectedDay);
     final expectedTemplate = ref.watch(expectedActivitiesProvider);
     final expected = _rebaseExpectedToDay(expectedTemplate, selectedDay);
-
-    final dateFormatter = _formatFrenchDate(selectedDay);
+    final titleDateFormatter = _formatFrenchDateLong(selectedDay);
 
     return Scaffold(
       backgroundColor: AppTheme.darkBg,
       appBar: AppBar(
-        title: const Text('Journal'),
+        title: Text('Activités - $titleDateFormatter'),
         actions: [
+          IconButton(
+            tooltip: 'Afficher la vue mois',
+            icon: const Icon(Icons.calendar_month, color: AppTheme.accentBlue),
+            onPressed: () {
+              setState(() {
+                _calendarMode = _calendarMode == DatePickerMode.day
+                    ? null
+                    : DatePickerMode.day;
+              });
+            },
+          ),
+          IconButton(
+            tooltip: 'Afficher la vue année',
+            icon: const Icon(Icons.calendar_today, color: AppTheme.accentBlue),
+            onPressed: () {
+              setState(() {
+                _calendarMode = _calendarMode == DatePickerMode.year
+                    ? null
+                    : DatePickerMode.year;
+              });
+            },
+          ),
           IconButton(
             tooltip: 'Paramètres',
             icon: const Icon(Icons.settings),
@@ -73,64 +82,16 @@ class _JournalPageState extends ConsumerState<JournalPage> {
         length: 2,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 20, 12, 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    dateFormatter,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Afficher la vue mois',
-                        icon: Icon(
-                          Icons.calendar_month,
-                          color: _calendarMode == DatePickerMode.day
-                              ? Colors.white
-                              : Colors.white70,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _calendarMode = _calendarMode == DatePickerMode.day
-                                ? null
-                                : DatePickerMode.day;
-                          });
-                        },
-                      ),
-                      IconButton(
-                        tooltip: 'Afficher la vue année',
-                        icon: Icon(
-                          Icons.calendar_today,
-                          color: _calendarMode == DatePickerMode.year
-                              ? Colors.white
-                              : Colors.white70,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _calendarMode = _calendarMode == DatePickerMode.year
-                                ? null
-                                : DatePickerMode.year;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
             if (_calendarMode != null)
               Container(
-                margin: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppTheme.darkBgLight.withValues(alpha: 0.55),
+                  border: Border.all(
+                    color: const Color(0xFFBFC7D1),
+                    width: 1.5,
+                  ),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: _calendarMode == DatePickerMode.day
@@ -138,7 +99,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                         initialDate: selectedDay,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2100),
-                        currentDate: defaultDay,
+                        currentDate: DateTime.now(),
                         onDateChanged: (picked) {
                           setState(() {
                             _selectedDate = DateTime(
@@ -155,7 +116,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                           firstDate: DateTime(2020),
                           lastDate: DateTime(2100),
                           selectedDate: selectedDay,
-                          currentDate: defaultDay,
+                          currentDate: DateTime.now(),
                           onChanged: (picked) {
                             setState(() {
                               _selectedDate = DateTime(
@@ -186,8 +147,8 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                         color: AppTheme.darkBgLight.withValues(alpha: 0.35),
                         child: Text(
@@ -199,7 +160,6 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
                       Expanded(
                         child: CalendarTimeline(
                           expectedActivities: const <Activity>[],
@@ -219,8 +179,8 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                          horizontal: 12,
+                          vertical: 8,
                         ),
                         color: AppTheme.darkBgLight.withValues(alpha: 0.35),
                         child: Text(
@@ -232,7 +192,6 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 4),
                       Expanded(
                         child: CalendarTimeline(
                           expectedActivities: expected,
@@ -256,21 +215,15 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     );
   }
 
-  DateTime _simulatedNow(
-    List<Activity> observed,
-    List<AnomalyHistoryModel> anomalies,
-  ) {
-    if (observed.isNotEmpty) {
-      return observed
-          .map((a) => (a.endAt ?? a.startAt).toLocal())
-          .reduce((a, b) => a.isAfter(b) ? a : b);
+  DateTime _defaultObservedDay(List<Activity> observed) {
+    if (observed.isEmpty) {
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day);
     }
-    if (anomalies.isNotEmpty) {
-      return anomalies
-          .map((a) => a.simulatedAt.toLocal())
-          .reduce((a, b) => a.isAfter(b) ? a : b);
-    }
-    return DateTime.now();
+    final latest = observed
+        .map((a) => (a.endAt ?? a.startAt).toLocal())
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    return DateTime(latest.year, latest.month, latest.day);
   }
 
   List<Activity> _filterActivitiesByDay(
@@ -286,22 +239,33 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     }).toList();
   }
 
-  String _formatFrenchDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Fév',
-      'Mar',
-      'Avr',
-      'Mai',
-      'Juin',
-      'Juil',
-      'Aoû',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Déc',
+  String _formatFrenchDateLong(DateTime date) {
+    const weekdays = [
+      'lundi',
+      'mardi',
+      'mercredi',
+      'jeudi',
+      'vendredi',
+      'samedi',
+      'dimanche',
     ];
-    return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+    const months = [
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+    ];
+    final weekday = weekdays[date.weekday - 1];
+    final month = months[date.month - 1];
+    return '$weekday ${date.day} $month ${date.year}';
   }
 
   Activity _toLocalActivity(Activity activity) {

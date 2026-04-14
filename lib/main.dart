@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:familly_baecon/core/providers/accessibility_provider.dart';
 import 'package:familly_baecon/core/services/app_badge_service.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/splash/presentation/views/splash_screen.dart';
@@ -15,14 +16,32 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final accessibility = ref.watch(accessibilitySettingsProvider);
+    final globalTextScale =
+        accessibility.textScaleFactor * AppTheme.baseTextScaleMultiplier;
+    final theme = AppTheme.buildTheme(
+      textScaleFactor: accessibility.textScaleFactor,
+      iconScaleFactor: accessibility.iconScaleFactor,
+      highContrast: accessibility.highContrast,
+    );
+
     return MaterialApp(
       title: 'FamilyBeacon',
-      theme: AppTheme.darkTheme,
+      theme: theme,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(globalTextScale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       home: const SplashScreen(),
       routes: {'/home': (context) => const FamilyBeaconApp()},
       debugShowCheckedModeBanner: false,
@@ -56,6 +75,7 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = Theme.of(context).iconTheme.size ?? 24;
     return Scaffold(
       body: _pages[_selectedIndex],
       bottomNavigationBar: NavigationBar(
@@ -65,18 +85,27 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
             _selectedIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home), label: 'Accueil'),
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.calendar_today),
-            label: 'Journal',
+            icon: Icon(Icons.home, size: iconSize),
+            label: 'Résumé',
           ),
           NavigationDestination(
-            icon: Icon(Icons.warning_amber_rounded),
+            icon: Icon(Icons.calendar_today, size: iconSize),
+            label: 'Activités',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.warning_amber_rounded, size: iconSize),
             label: 'Anomalies',
           ),
-          NavigationDestination(icon: Icon(Icons.map_outlined), label: 'Plan'),
-          NavigationDestination(icon: Icon(Icons.show_chart), label: 'Analyse'),
+          NavigationDestination(
+            icon: Icon(Icons.map_outlined, size: iconSize),
+            label: 'Localisation',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.show_chart, size: iconSize),
+            label: 'Stats',
+          ),
         ],
       ),
     );

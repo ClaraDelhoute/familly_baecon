@@ -34,7 +34,7 @@ class Sensor {
 }
 
 /// Widget affichant le plan du logement
-class FloorPlanWidget extends StatelessWidget {
+class FloorPlanWidget extends StatefulWidget {
   final List<Room> rooms;
   final List<Sensor> sensors;
   final String? selectedRoomId;
@@ -59,23 +59,53 @@ class FloorPlanWidget extends StatelessWidget {
   });
 
   @override
+  State<FloorPlanWidget> createState() => _FloorPlanWidgetState();
+}
+
+class _FloorPlanWidgetState extends State<FloorPlanWidget> {
+  late final TransformationController _transformationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformationController = TransformationController();
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
+  }
+
+  void _zoomBy(double factor) {
+    final current = _transformationController.value.getMaxScaleOnAxis();
+    final target = (current * factor).clamp(1.0, 4.0);
+    final scale = target / current;
+    final next = Matrix4.copy(_transformationController.value)
+      ..scale(scale, scale, 1);
+    _transformationController.value = next;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final iconSize = Theme.of(context).iconTheme.size ?? 24;
+
     final core = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showHeader) ...[
+        if (widget.showHeader) ...[
           Row(
             children: [
               Icon(
                 Icons.location_on_outlined,
                 color: AppTheme.accentBlue,
-                size: 18,
+                size: iconSize,
               ),
               const SizedBox(width: 8),
               Text(
                 'Plan du logement',
-                style: TextStyle(
-                  fontSize: 13,
+                style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: AppTheme.accentBlue,
                   letterSpacing: 0.5,
@@ -85,11 +115,11 @@ class FloorPlanWidget extends StatelessWidget {
           ),
           const SizedBox(height: 14),
         ],
-        if (height.isFinite)
-          SizedBox(height: height, child: _buildPlanCanvas())
+        if (widget.height.isFinite)
+          SizedBox(height: widget.height, child: _buildPlanCanvas())
         else
           Expanded(child: _buildPlanCanvas()),
-        if (showLegend) ...[
+        if (widget.showLegend) ...[
           const SizedBox(height: 12),
           Wrap(
             spacing: 16,
@@ -111,7 +141,7 @@ class FloorPlanWidget extends StatelessWidget {
       ],
     );
 
-    if (frameless) {
+    if (widget.frameless) {
       return core;
     }
 
@@ -144,32 +174,83 @@ class FloorPlanWidget extends StatelessWidget {
           constraints.maxWidth.isFinite ? constraints.maxWidth : 320,
           constraints.maxHeight.isFinite ? constraints.maxHeight : 300,
         );
-        final transform = _PlanTransform.fit(rooms, sensors, size, padding: 6);
-        return CustomPaint(
-          painter: FloorPlanPainter(
-            rooms: rooms,
-            sensors: sensors,
-            selectedRoomId: selectedRoomId,
-            activeSensorId: activeSensorId,
-            transform: transform,
+        final transform = _PlanTransform.fit(
+          widget.rooms,
+          widget.sensors,
+          size,
+          padding: 6,
+        );
+        final canvas = SizedBox(
+          width: size.width,
+          height: size.height,
+          child: CustomPaint(
+            painter: FloorPlanPainter(
+              rooms: widget.rooms,
+              sensors: widget.sensors,
+              selectedRoomId: widget.selectedRoomId,
+              activeSensorId: widget.activeSensorId,
+              transform: transform,
+            ),
           ),
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (details) {
-              final originalPoint = transform.toOriginal(details.localPosition);
-              for (final room in rooms) {
-                final rect = Rect.fromCenter(
-                  center: room.position,
-                  width: room.size.width,
-                  height: room.size.height,
+        );
+
+        return Stack(
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTapDown: (details) {
+                final scenePoint = _transformationController.toScene(
+                  details.localPosition,
                 );
-                if (rect.contains(originalPoint)) {
-                  onRoomTap?.call(room.id);
-                  break;
+                final originalPoint = transform.toOriginal(scenePoint);
+                for (final room in widget.rooms) {
+                  final rect = Rect.fromCenter(
+                    center: room.position,
+                    width: room.size.width,
+                    height: room.size.height,
+                  );
+                  if (rect.contains(originalPoint)) {
+                    widget.onRoomTap?.call(room.id);
+                    break;
+                  }
                 }
-              }
-            },
-          ),
+              },
+              child: InteractiveViewer(
+                transformationController: _transformationController,
+                minScale: 1.0,
+                maxScale: 4.0,
+                constrained: false,
+                panEnabled: true,
+                scaleEnabled: true,
+                child: canvas,
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Zoom -',
+                      onPressed: () => _zoomBy(1 / 1.2),
+                      icon: const Icon(Icons.remove),
+                    ),
+                    IconButton(
+                      tooltip: 'Zoom +',
+                      onPressed: () => _zoomBy(1.2),
+                      icon: const Icon(Icons.add),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -187,7 +268,11 @@ class FloorPlanWidget extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          style: TextStyle(
+            fontSize: 12,
+            color: AppTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -269,9 +354,7 @@ class FloorPlanPainter extends CustomPainter {
       final roomCenter = transform.toCanvas(room.position);
       final labelOffset = Offset(
         roomCenter.dx - (textPainter.width / 2),
-        roomCenter.dy +
-            (room.size.height * transform.scale / 2) +
-            (6 * transform.scale),
+        roomCenter.dy - (textPainter.height / 2),
       );
       textPainter.paint(canvas, labelOffset);
     }

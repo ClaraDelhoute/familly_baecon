@@ -75,11 +75,11 @@ class _SplashScreenState extends State<SplashScreen>
                 children: [
                   // Logo SVG - Agrandie
                   SizedBox(
-                    width: 200,
-                    height: 200,
+                    width: 240,
+                    height: 240,
                     child: AnimatedLighthouse(
                       color: lighthouseColor,
-                      size: 190,
+                      size: 230,
                     ),
                   ),
                   const SizedBox(height: 40),
@@ -94,7 +94,14 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                   const SizedBox(height: 50),
-                  AnimatedLighthouse(color: lighthouseColor, size: 52),
+                  const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 4,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
                 ],
               ),
             ),

@@ -38,22 +38,106 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   // Journée type hardcodée avec heures exactes
   static const List<Map<String, dynamic>> journeeType = [
     // Matin
-    {'startHour': 8, 'startMin': 0, 'endHour': 8, 'endMin': 40, 'label': 'Temps libre / réveil', 'icon': ''},
-    {'startHour': 8, 'startMin': 40, 'endHour': 8, 'endMin': 55, 'label': 'Douche', 'icon': '🚿'},
-    {'startHour': 9, 'startMin': 10, 'endHour': 9, 'endMin': 30, 'label': 'Petit-déjeuner', 'icon': '🍳'},
-    {'startHour': 9, 'startMin': 55, 'endHour': 11, 'endMin': 30, 'label': 'Sortie / déplacement', 'icon': '🚗'},
+    {
+      'startHour': 8,
+      'startMin': 0,
+      'endHour': 8,
+      'endMin': 40,
+      'label': 'Temps libre / réveil',
+      'icon': '',
+    },
+    {
+      'startHour': 8,
+      'startMin': 40,
+      'endHour': 8,
+      'endMin': 55,
+      'label': 'Douche',
+      'icon': '🚿',
+    },
+    {
+      'startHour': 9,
+      'startMin': 10,
+      'endHour': 9,
+      'endMin': 30,
+      'label': 'Petit-déjeuner',
+      'icon': '🍳',
+    },
+    {
+      'startHour': 9,
+      'startMin': 55,
+      'endHour': 11,
+      'endMin': 30,
+      'label': 'Sortie / déplacement',
+      'icon': '🚗',
+    },
     // Midi
-    {'startHour': 11, 'startMin': 30, 'endHour': 12, 'endMin': 36, 'label': 'Temps libre / activité', 'icon': ''},
-    {'startHour': 12, 'startMin': 36, 'endHour': 13, 'endMin': 10, 'label': 'Déjeuner', 'icon': '🍽️'},
+    {
+      'startHour': 11,
+      'startMin': 30,
+      'endHour': 12,
+      'endMin': 36,
+      'label': 'Temps libre / activité',
+      'icon': '',
+    },
+    {
+      'startHour': 12,
+      'startMin': 36,
+      'endHour': 13,
+      'endMin': 10,
+      'label': 'Déjeuner',
+      'icon': '🍽️',
+    },
     // Après-midi
-    {'startHour': 13, 'startMin': 10, 'endHour': 16, 'endMin': 45, 'label': 'Temps libre / activité', 'icon': ''},
-    {'startHour': 16, 'startMin': 45, 'endHour': 18, 'endMin': 15, 'label': 'Sortie / déplacement', 'icon': '🚗'},
+    {
+      'startHour': 13,
+      'startMin': 10,
+      'endHour': 16,
+      'endMin': 45,
+      'label': 'Temps libre / activité',
+      'icon': '',
+    },
+    {
+      'startHour': 16,
+      'startMin': 45,
+      'endHour': 18,
+      'endMin': 15,
+      'label': 'Sortie / déplacement',
+      'icon': '🚗',
+    },
     // Soir
-    {'startHour': 18, 'startMin': 15, 'endHour': 19, 'endMin': 30, 'label': 'Temps libre', 'icon': ''},
-    {'startHour': 19, 'startMin': 30, 'endHour': 20, 'endMin': 12, 'label': 'Dîner', 'icon': '🍽️'},
-    {'startHour': 20, 'startMin': 12, 'endHour': 21, 'endMin': 20, 'label': 'Temps libre', 'icon': ''},
+    {
+      'startHour': 18,
+      'startMin': 15,
+      'endHour': 19,
+      'endMin': 30,
+      'label': 'Temps libre',
+      'icon': '',
+    },
+    {
+      'startHour': 19,
+      'startMin': 30,
+      'endHour': 20,
+      'endMin': 12,
+      'label': 'Dîner',
+      'icon': '🍽️',
+    },
+    {
+      'startHour': 20,
+      'startMin': 12,
+      'endHour': 21,
+      'endMin': 20,
+      'label': 'Temps libre',
+      'icon': '',
+    },
     // Nuit
-    {'startHour': 21, 'startMin': 20, 'endHour': 8, 'endMin': 30, 'label': 'Sommeil', 'icon': '😴'},
+    {
+      'startHour': 21,
+      'startMin': 20,
+      'endHour': 8,
+      'endMin': 30,
+      'label': 'Sommeil',
+      'icon': '😴',
+    },
   ];
 
   // Constantes pour la timeline
@@ -93,7 +177,11 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     final l = label.toLowerCase();
     if (l.contains('sommeil') || l.contains('sleep')) return 'sleep';
     if (l.contains('douche') || l.contains('toilet')) return 'hygiene';
-    if (l.contains('petit-déjeuner') || l.contains('déjeuner') || l.contains('dîner') || l.contains('repas')) return 'meal';
+    if (l.contains('petit-déjeuner') ||
+        l.contains('déjeuner') ||
+        l.contains('dîner') ||
+        l.contains('repas'))
+      return 'meal';
     if (l.contains('sortie') || l.contains('déplacement')) return 'out';
     return 'other';
   }
@@ -102,10 +190,24 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     final t = activity.type.toLowerCase();
     final r = (activity.room ?? '').toLowerCase();
 
-    if (t.contains('sleep') || r.contains('chambre') || r.contains('lit')) return 'sleep';
-    if (t.contains('toilettes') || t.contains('douche') || r.contains('salle de bain') || r.contains('toilet')) return 'hygiene';
-    if (t.contains('cuisine') || t.contains('repas') || t.contains('meal') || r.contains('cuisine') || r.contains('salle à manger')) return 'meal';
-    if (t.contains('sortie') || t.contains('outside') || t.contains('déplacement') || r.contains('extérieur')) return 'out';
+    if (t.contains('sleep') || r.contains('chambre') || r.contains('lit'))
+      return 'sleep';
+    if (t.contains('toilettes') ||
+        t.contains('douche') ||
+        r.contains('salle de bain') ||
+        r.contains('toilet'))
+      return 'hygiene';
+    if (t.contains('cuisine') ||
+        t.contains('repas') ||
+        t.contains('meal') ||
+        r.contains('cuisine') ||
+        r.contains('salle à manger'))
+      return 'meal';
+    if (t.contains('sortie') ||
+        t.contains('outside') ||
+        t.contains('déplacement') ||
+        r.contains('extérieur'))
+      return 'out';
 
     return 'other';
   }
@@ -131,8 +233,14 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     final oCat = _categoryFromObserved(observed);
 
     for (final slot in expectedSlots) {
-      final eStart = _getMinutesFromMidnight(slot['startHour'] as int, slot['startMin'] as int);
-      var eEnd = _getMinutesFromMidnight(slot['endHour'] as int, slot['endMin'] as int);
+      final eStart = _getMinutesFromMidnight(
+        slot['startHour'] as int,
+        slot['startMin'] as int,
+      );
+      var eEnd = _getMinutesFromMidnight(
+        slot['endHour'] as int,
+        slot['endMin'] as int,
+      );
       if (eEnd < eStart) eEnd += 24 * 60;
 
       final eCat = _categoryFromLabel(slot['label'] as String);
@@ -236,7 +344,8 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
 
     const timelineHeaderOffset = 120.0;
     final viewport = _verticalScrollController.position.viewportDimension;
-    final rawTarget = timelineHeaderOffset + (minute * pixelsPerMinute) - (viewport * 0.45);
+    final rawTarget =
+        timelineHeaderOffset + (minute * pixelsPerMinute) - (viewport * 0.45);
     final target = rawTarget.clamp(
       0.0,
       _verticalScrollController.position.maxScrollExtent,
@@ -257,15 +366,22 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
         final effectiveColumns = visibleColumns == 0 ? 1 : visibleColumns;
 
         // Largeur disponible (hors padding)
-        final availableWidth = (constraints.maxWidth.isFinite ? constraints.maxWidth : MediaQuery.of(context).size.width) - 24;
-        final columnsWidth = (availableWidth - timeColumnWidth).clamp(240.0, double.infinity);
+        final availableWidth =
+            (constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : MediaQuery.of(context).size.width) -
+            24;
+        final columnsWidth = (availableWidth - timeColumnWidth).clamp(
+          240.0,
+          double.infinity,
+        );
         final colWidth = columnsWidth / effectiveColumns;
         final totalTableWidth = timeColumnWidth + (colWidth * effectiveColumns);
 
         return SingleChildScrollView(
           controller: _verticalScrollController,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,7 +399,10 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                           SizedBox(
                             width: colWidth,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 6,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -303,7 +422,9 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                                     height: 2,
                                     width: 40,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.accentBlue.withValues(alpha: 0.3),
+                                      color: AppTheme.accentBlue.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       borderRadius: BorderRadius.circular(1),
                                     ),
                                   ),
@@ -315,7 +436,10 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                           SizedBox(
                             width: colWidth,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 6,
+                              ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -335,7 +459,9 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                                     height: 2,
                                     width: 40,
                                     decoration: BoxDecoration(
-                                      color: AppTheme.accentCyan.withValues(alpha: 0.3),
+                                      color: AppTheme.accentCyan.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       borderRadius: BorderRadius.circular(1),
                                     ),
                                   ),
@@ -368,8 +494,9 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                                 border: showObserved
                                     ? Border(
                                         right: BorderSide(
-                                          color: AppTheme.textSecondary.withValues(alpha: 0.2),
-                                          width: 1,
+                                          color: AppTheme.textSecondary
+                                              .withValues(alpha: 0.2),
+                                          width: 1.5,
                                         ),
                                       )
                                     : null,
@@ -437,7 +564,10 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     );
   }
 
-  Widget _buildTimelineColumn(List<Map<String, dynamic>> activities, {required bool isObserved}) {
+  Widget _buildTimelineColumn(
+    List<Map<String, dynamic>> activities, {
+    required bool isObserved,
+  }) {
     final totalHeight = 24 * hourHeight;
 
     return SizedBox(
@@ -453,7 +583,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                   border: Border(
                     bottom: BorderSide(
                       color: AppTheme.textSecondary.withValues(alpha: 0.18),
-                      width: 0.9,
+                      width: 1.2,
                     ),
                   ),
                 ),
@@ -464,29 +594,29 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
           ...activities.map((activity) {
             final startHour = activity['startHour'] as int;
             final startMin = activity['startMin'] as int;
-             final endHour = activity['endHour'] as int;
-             final endMin = activity['endMin'] as int;
-             final label = activity['label'] as String;
-             final icon = activity['icon'] as String;
+            final endHour = activity['endHour'] as int;
+            final endMin = activity['endMin'] as int;
+            final label = activity['label'] as String;
+            final icon = activity['icon'] as String;
 
-             final topPos = _getTopPosition(startHour, startMin);
-             final height = _getHeight(startHour, startMin, endHour, endMin);
+            final topPos = _getTopPosition(startHour, startMin);
+            final height = _getHeight(startHour, startMin, endHour, endMin);
 
-               return Positioned(
-               top: topPos,
-               left: 4,
-               right: 4,
-               height: height.clamp(_minCardHeight, double.infinity),
-               child: _buildTimelineActivityCard(
-                 label: label,
-                 icon: icon,
-                 startHour: startHour,
-                 startMin: startMin,
-                 endHour: endHour,
-                 endMin: endMin,
-               ),
-             );
-           }),
+            return Positioned(
+              top: topPos,
+              left: 4,
+              right: 4,
+              height: height.clamp(_minCardHeight, double.infinity),
+              child: _buildTimelineActivityCard(
+                label: label,
+                icon: icon,
+                startHour: startHour,
+                startMin: startMin,
+                endHour: endHour,
+                endMin: endMin,
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -505,11 +635,11 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                      color: AppTheme.textSecondary.withValues(alpha: 0.18),
-                      width: 0.9,
-                    ),
+                    color: AppTheme.textSecondary.withValues(alpha: 0.18),
+                    width: 1.2,
                   ),
                 ),
+              ),
             );
           }),
         ),
@@ -532,7 +662,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                       border: Border(
                         bottom: BorderSide(
                           color: AppTheme.textSecondary.withValues(alpha: 0.18),
-                          width: 0.9,
+                          width: 1.2,
                         ),
                       ),
                     ),
@@ -543,9 +673,12 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                 final laneCount = layout.laneCount;
                 final laneGap = laneCount > 1 ? 4.0 : 0.0;
                 final laneWidth =
-                    ((usableWidth - ((laneCount - 1) * laneGap)) / laneCount).clamp(56.0, usableWidth);
+                    ((usableWidth - ((laneCount - 1) * laneGap)) / laneCount)
+                        .clamp(56.0, usableWidth);
                 final left = 4 + (layout.lane * (laneWidth + laneGap));
-                final color = layout.isMatch ? AppTheme.activityGreen : AppTheme.activityRed;
+                final color = layout.isMatch
+                    ? AppTheme.activityGreen
+                    : AppTheme.activityRed;
                 final label = _getActivityLabel(layout.activity);
                 final emoji = _emojiForObserved(layout.activity);
 
@@ -556,7 +689,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                   height: layout.height,
                   child: GestureDetector(
                     onTap: () => widget.onActivityTap?.call(layout.activity),
-                      child: _buildObservedActivityCard(
+                    child: _buildObservedActivityCard(
                       height: layout.height,
                       color: color,
                       emoji: emoji,
@@ -655,11 +788,16 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     var cluster = <_ObservedRawInterval>[];
     var clusterEnd = -1;
     for (final activity in sorted) {
-      final start = _getMinutesFromMidnight(activity.startAt.hour, activity.startAt.minute);
+      final start = _getMinutesFromMidnight(
+        activity.startAt.hour,
+        activity.startAt.minute,
+      );
       var end = _observedEndMinutes(activity, start);
       if (end < start) end += 24 * 60;
       if (cluster.isEmpty || start < clusterEnd) {
-        cluster.add(_ObservedRawInterval(activity: activity, start: start, end: end));
+        cluster.add(
+          _ObservedRawInterval(activity: activity, start: start, end: end),
+        );
         if (end > clusterEnd) clusterEnd = end;
       } else {
         result.addAll(_layoutCluster(cluster));
@@ -698,7 +836,10 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
           (b) => _ObservedLayout(
             activity: b.item.activity,
             top: b.item.start * pixelsPerMinute,
-            height: ((b.item.end - b.item.start) * pixelsPerMinute).clamp(_minCardHeight, double.infinity),
+            height: ((b.item.end - b.item.start) * pixelsPerMinute).clamp(
+              _minCardHeight,
+              double.infinity,
+            ),
             lane: b.lane,
             laneCount: laneCount,
             isMatch: _matchesJourneeType(b.item.activity),
@@ -792,16 +933,22 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
       ),
     );
   }
+
   String _getActivityLabel(Activity activity) {
     final activityLabel = _formatTypeLabel(activity.type);
-    return activityLabel.length > 18 ? '${activityLabel.substring(0, 18)}...' : activityLabel;
+    return activityLabel.length > 18
+        ? '${activityLabel.substring(0, 18)}...'
+        : activityLabel;
   }
 
   String _emojiFromLabel(String label) {
     final l = label.toLowerCase();
     if (l.contains('sommeil') || l.contains('sleep')) return '😴';
     if (l.contains('douche') || l.contains('toilet')) return '🚿';
-    if (l.contains('déjeuner') || l.contains('petit-déjeuner') || l.contains('dîner') || l.contains('repas')) {
+    if (l.contains('déjeuner') ||
+        l.contains('petit-déjeuner') ||
+        l.contains('dîner') ||
+        l.contains('repas')) {
       return '🍽️';
     }
     if (l.contains('sortie') || l.contains('déplacement')) return '🚶';
@@ -811,11 +958,19 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   String _formatTypeLabel(String rawType) {
     final t = rawType.toLowerCase();
     if (t.contains('sleep') || t.contains('sommeil')) return 'Sommeil';
-    if (t.contains('meal') || t.contains('repas') || t.contains('breakfast') || t.contains('lunch') || t.contains('dinner')) {
+    if (t.contains('meal') ||
+        t.contains('repas') ||
+        t.contains('breakfast') ||
+        t.contains('lunch') ||
+        t.contains('dinner')) {
       return 'Repas';
     }
-    if (t.contains('toilet') || t.contains('douche') || t.contains('hygiene')) return 'Hygiène';
-    if (t.contains('sortie') || t.contains('outside') || t.contains('déplacement')) return 'Sortie / déplacement';
+    if (t.contains('toilet') || t.contains('douche') || t.contains('hygiene'))
+      return 'Hygiène';
+    if (t.contains('sortie') ||
+        t.contains('outside') ||
+        t.contains('déplacement'))
+      return 'Sortie / déplacement';
     if (t.contains('tv') || t.contains('television')) return 'Télévision';
     if (t.contains('kitchen') || t.contains('cuisine')) return 'Cuisine';
     return rawType;
@@ -829,14 +984,24 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   String _emojiForObserved(Activity activity) {
     final t = activity.type.toLowerCase();
     final r = (activity.room ?? '').toLowerCase();
-    if (t.contains('sleep') || r.contains('chambre') || r.contains('lit')) return '😴';
-    if (t.contains('toilettes') || t.contains('douche') || r.contains('salle de bain') || r.contains('toilet')) {
+    if (t.contains('sleep') || r.contains('chambre') || r.contains('lit'))
+      return '😴';
+    if (t.contains('toilettes') ||
+        t.contains('douche') ||
+        r.contains('salle de bain') ||
+        r.contains('toilet')) {
       return '🚿';
     }
-    if (t.contains('repas') || t.contains('meal') || r.contains('cuisine') || r.contains('salle à manger')) {
+    if (t.contains('repas') ||
+        t.contains('meal') ||
+        r.contains('cuisine') ||
+        r.contains('salle à manger')) {
       return '🍽️';
     }
-    if (t.contains('sortie') || t.contains('outside') || t.contains('déplacement') || r.contains('extérieur')) {
+    if (t.contains('sortie') ||
+        t.contains('outside') ||
+        t.contains('déplacement') ||
+        r.contains('extérieur')) {
       return '🚶';
     }
     return '📍';
@@ -849,43 +1014,46 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     return '$h:$m';
   }
 
-  String _formatObservedRange(DateTime startAt, DateTime? endAt, int? durationMin) {
+  String _formatObservedRange(
+    DateTime startAt,
+    DateTime? endAt,
+    int? durationMin,
+  ) {
     final startMinute = _minutesFromDateTime(startAt);
     final computedEnd = endAt != null
         ? _minutesFromDateTime(endAt)
         : (durationMin != null && durationMin > 0)
-            ? startMinute + durationMin
-            : startMinute + 60;
-    final endMinute = computedEnd < startMinute ? computedEnd + (24 * 60) : computedEnd;
+        ? startMinute + durationMin
+        : startMinute + 60;
+    final endMinute = computedEnd < startMinute
+        ? computedEnd + (24 * 60)
+        : computedEnd;
     return '${_formatHmFromMinute(startMinute)} - ${_formatHmFromMinute(endMinute)}';
   }
 
   List<Map<String, dynamic>> _expectedSlots() {
     if (widget.expectedActivities.isEmpty) return journeeType;
-    return widget.expectedActivities
-        .map((activity) {
-          final startMinute = _minutesFromDateTime(activity.startAt);
-          var endMinute = activity.endAt != null
-              ? _minutesFromDateTime(activity.endAt!)
-              : (activity.durationMin != null && activity.durationMin! > 0)
-                  ? startMinute + activity.durationMin!
-                  : startMinute + 60;
-          if (endMinute < startMinute) endMinute += 24 * 60;
-          return <String, dynamic>{
-            'startHour': (startMinute ~/ 60) % 24,
-            'startMin': startMinute % 60,
-            'endHour': (endMinute ~/ 60) % 24,
-            'endMin': endMinute % 60,
-            'label': _formatTypeLabel(activity.type),
-            'icon': _emojiForObserved(activity),
-          };
-        })
-        .toList()
-      ..sort((a, b) {
-        final aStart = (a['startHour'] as int) * 60 + (a['startMin'] as int);
-        final bStart = (b['startHour'] as int) * 60 + (b['startMin'] as int);
-        return aStart.compareTo(bStart);
-      });
+    return widget.expectedActivities.map((activity) {
+      final startMinute = _minutesFromDateTime(activity.startAt);
+      var endMinute = activity.endAt != null
+          ? _minutesFromDateTime(activity.endAt!)
+          : (activity.durationMin != null && activity.durationMin! > 0)
+          ? startMinute + activity.durationMin!
+          : startMinute + 60;
+      if (endMinute < startMinute) endMinute += 24 * 60;
+      return <String, dynamic>{
+        'startHour': (startMinute ~/ 60) % 24,
+        'startMin': startMinute % 60,
+        'endHour': (endMinute ~/ 60) % 24,
+        'endMin': endMinute % 60,
+        'label': _formatTypeLabel(activity.type),
+        'icon': _emojiForObserved(activity),
+      };
+    }).toList()..sort((a, b) {
+      final aStart = (a['startHour'] as int) * 60 + (a['startMin'] as int);
+      final bStart = (b['startHour'] as int) * 60 + (b['startMin'] as int);
+      return aStart.compareTo(bStart);
+    });
   }
 }
 
@@ -905,20 +1073,14 @@ class _ObservedLaneInterval {
   final int end;
   final int lane;
 
-  const _ObservedLaneInterval({
-    required this.end,
-    required this.lane,
-  });
+  const _ObservedLaneInterval({required this.end, required this.lane});
 }
 
 class _ObservedLayoutTemp {
   final _ObservedRawInterval item;
   final int lane;
 
-  const _ObservedLayoutTemp({
-    required this.item,
-    required this.lane,
-  });
+  const _ObservedLayoutTemp({required this.item, required this.lane});
 }
 
 class _ObservedLayout {
