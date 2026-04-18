@@ -37,12 +37,12 @@ class AnomalyExplainer {
     final minute = time.minute.toString().padLeft(2, '0');
 
     final explanations = {
-      'sleep': 'Réné n\'a pas dormi à l\'heure prévue ($hour:$minute). C\'est peut-être une nuit courte ou difficile.',
+      'sleep': 'René n\'a pas dormi à l\'heure prévue ($hour:$minute). C\'est peut-être une nuit courte ou difficile.',
       'toilettes': 'Pas de visite aux toilettes détectée à $hour:$minute. À vérifier.',
-      'petit-déjeuner': 'Réné n\'a pas pris son petit-déjeuner à $hour:$minute. Vérifiez s\'il a mangé plus tard.',
+      'petit-déjeuner': 'René n\'a pas pris son petit-déjeuner à $hour:$minute. Vérifiez s\'il a mangé plus tard.',
       'déjeuner': 'Le repas de midi n\'a pas été détecté à $hour:$minute.',
       'dîner': 'Le dîner n\'a pas eu lieu à l\'heure habituelle ($hour:$minute).',
-      'activité': 'Aucune activité n\'a été détectée à $hour:$minute. Réné était peut-être inactif.',
+      'activité': 'Aucune activité n\'a été détectée à $hour:$minute. René était peut-être inactif.',
     };
 
     return explanations[activityType.toLowerCase()] ??
@@ -55,12 +55,12 @@ class AnomalyExplainer {
     String observedRoom,
   ) {
     final explanations = {
-      'sleep': 'Réné a dormi dans la $observedRoom au lieu de la $expectedRoom. Changement de routine.',
+      'sleep': 'René a dormi dans la $observedRoom au lieu de la $expectedRoom. Changement de routine.',
       'toilettes': 'Les toilettes utilisées ne sont pas la salle de bain habituelle.',
-      'petit-déjeuner': 'Réné a petit-déjeuné dans la $observedRoom au lieu de la $expectedRoom.',
+      'petit-déjeuner': 'René a petit-déjeuné dans la $observedRoom au lieu de la $expectedRoom.',
       'déjeuner': 'Le déjeuner a eu lieu dans la $observedRoom au lieu de la $expectedRoom.',
       'dîner': 'Le dîner s\'est déroulé dans la $observedRoom au lieu de la $expectedRoom.',
-      'activité': 'Réné était dans la $observedRoom au lieu de la $expectedRoom.',
+      'activité': 'René était dans la $observedRoom au lieu de la $expectedRoom.',
     };
 
     return explanations[activityType.toLowerCase()] ??
@@ -75,7 +75,7 @@ class AnomalyExplainer {
     final direction = isLate ? 'plus tard' : 'plus tôt';
 
     final explanations = {
-      'sleep': 'Réné s\'est couché $direction. Décalage de $minutesDifference minutes.',
+      'sleep': 'René s\'est couché $direction. Décalage de $minutesDifference minutes.',
       'toilettes': 'Les toilettes ont été utilisées $direction de $minutesDifference minutes.',
       'petit-déjeuner': 'Petit-déjeuner décalé de $minutesDifference minutes ($direction).',
       'déjeuner': 'Déjeuner $direction de $minutesDifference minutes.',

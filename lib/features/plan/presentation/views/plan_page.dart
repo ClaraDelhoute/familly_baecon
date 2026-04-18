@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/utils/orientation_lock.dart';
 import 'package:familly_baecon/features/home/presentation/providers/floor_plan_providers.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
@@ -192,7 +193,7 @@ class _PlanLandscapePageState extends State<_PlanLandscapePage> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    applyDefaultOrientationLock();
     super.dispose();
   }
 

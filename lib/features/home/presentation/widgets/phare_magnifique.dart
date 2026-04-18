@@ -11,6 +11,9 @@ class PhareMagnifique extends StatefulWidget {
   final bool hasActiveAnomaly;
   final String? alertSeverity;
   final bool forceGyrophare;
+  final double width;
+  final double height;
+  final double lighthouseSize;
 
   const PhareMagnifique({
     super.key,
@@ -19,6 +22,9 @@ class PhareMagnifique extends StatefulWidget {
     this.hasActiveAnomaly = false,
     this.alertSeverity,
     this.forceGyrophare = false,
+    this.width = 260,
+    this.height = 210,
+    this.lighthouseSize = 190,
   });
 
   @override
@@ -142,8 +148,8 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
 
     return Center(
       child: Container(
-        width: 260,
-        height: 210,
+        width: widget.width,
+        height: widget.height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: color.withValues(alpha: 0.35), width: 2),
@@ -160,7 +166,10 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Center(
-              child: AnimatedLighthouse(color: color, size: 190),
+              child: AnimatedLighthouse(
+                color: color,
+                size: widget.lighthouseSize,
+              ),
             ),
           ),
         ),

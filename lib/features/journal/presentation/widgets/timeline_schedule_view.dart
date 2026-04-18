@@ -432,7 +432,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                               ),
                             ),
                           ),
-                        if (showObserved)
+                        if (showObserved && widget.observedColumnTitle.isNotEmpty)
                           SizedBox(
                             width: colWidth,
                             child: Padding(

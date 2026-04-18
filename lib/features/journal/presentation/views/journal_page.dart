@@ -39,10 +39,21 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     final expected = _rebaseExpectedToDay(expectedTemplate, selectedDay);
     final titleDateFormatter = _formatFrenchDateLong(selectedDay);
 
+    final titleCapitalized = titleDateFormatter.isEmpty
+        ? ''
+        : '${titleDateFormatter[0].toUpperCase()}${titleDateFormatter.substring(1)}';
+
     return Scaffold(
       backgroundColor: AppTheme.darkBg,
       appBar: AppBar(
-        title: Text('Activités - $titleDateFormatter'),
+        title: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.0,
+          child: Text(
+            titleCapitalized,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Afficher la vue mois',
@@ -142,37 +153,15 @@ class _JournalPageState extends ConsumerState<JournalPage> {
             Expanded(
               child: TabBarView(
                 children: [
-                  Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        color: AppTheme.darkBgLight.withValues(alpha: 0.35),
-                        child: Text(
-                          'Activités observées de la journée',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: CalendarTimeline(
-                          expectedActivities: const <Activity>[],
-                          observedActivities: observedForDay,
-                          showExpectedColumn: false,
-                          observedColumnTitle: 'JOURNÉE OBSERVÉE',
-                          sharedVerticalOffset: _sharedTimelineScrollOffset,
-                          onVerticalOffsetChanged: (offset) {
-                            _sharedTimelineScrollOffset = offset;
-                          },
-                        ),
-                      ),
-                    ],
+                  CalendarTimeline(
+                    expectedActivities: const <Activity>[],
+                    observedActivities: observedForDay,
+                    showExpectedColumn: false,
+                    observedColumnTitle: '',
+                    sharedVerticalOffset: _sharedTimelineScrollOffset,
+                    onVerticalOffsetChanged: (offset) {
+                      _sharedTimelineScrollOffset = offset;
+                    },
                   ),
                   Column(
                     children: [

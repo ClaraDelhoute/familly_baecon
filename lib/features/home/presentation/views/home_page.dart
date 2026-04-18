@@ -9,8 +9,6 @@ import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
-import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
-import 'package:familly_baecon/features/home/presentation/providers/floor_plan_providers.dart';
 import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
 
 import '../../domain/entities/activity.dart';
@@ -350,139 +348,224 @@ class HomePage extends ConsumerWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Column(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(36),
-                      child: SizedBox(
-                        width: 72,
-                        height: 72,
-                        child: Image.asset(
-                          'assets/elderly_avatar.jpg',
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Réné',
-                      textAlign: TextAlign.center,
-                      style: textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _formatLastActivityBanner(lastActivity),
-                style: sectionLabelStyle?.copyWith(
-                  color: AppTheme.textPrimary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: Column(
-                  children: [
-                    PhareMagnifique(
-                      expected: expected,
-                      observed: observed,
-                      hasActiveAnomaly: hasLatestAnomaly,
-                    ),
-                    if (hasLatestAnomaly) ...[
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () {
-                          _showPhareModal(
-                            context,
-                            expected,
-                            observed,
-                            phareStatus,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: phareColor,
-                          foregroundColor: Colors.white,
-                        ),
-                        child: const Text('En savoir plus'),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 28),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWide = constraints.maxWidth >= 700;
+          final latestLocation = observedForLastActivity.isEmpty
+              ? null
+              : observedForLastActivity.reduce(
+                  (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
+                );
 
-              // === RÉSUMÉ DU JOUR (EN PREMIER) ===
+          final avatarSize = isWide ? 96.0 : 72.0;
+          final avatar = Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.darkBgLight,
+              border: Border.all(
+                color: AppTheme.accentBlue.withValues(alpha: 0.18),
+                width: 2,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(avatarSize),
+              child: SizedBox(
+                width: avatarSize,
+                height: avatarSize,
+                child: Image.asset(
+                  'assets/elderly_avatar.jpg',
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          );
+
+          final nameText = Text(
+            'René',
+            textAlign: TextAlign.center,
+            style: textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textPrimary,
+            ),
+          );
+
+          final infoCard = Container(
+            decoration: BoxDecoration(
+              color: AppTheme.darkBgLight,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppTheme.textSecondary.withValues(alpha: 0.12),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _InfoTile(
+                  icon: Icons.history_rounded,
+                  iconColor: AppTheme.accentBlue,
+                  label: 'Dernière activité',
+                  value: _formatLastActivityValue(lastActivity),
+                ),
+                Divider(
+                  height: 18,
+                  thickness: 1,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.10),
+                ),
+                _InfoTile(
+                  icon: Icons.place_outlined,
+                  iconColor: AppTheme.accentCyan,
+                  label: 'Dernière localisation',
+                  value: _formatLatestLocationValue(latestLocation),
+                ),
+              ],
+            ),
+          );
+
+          Widget buildPhare({
+            required double width,
+            required double height,
+            required double lighthouseSize,
+          }) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PhareMagnifique(
+                  expected: expected,
+                  observed: observed,
+                  hasActiveAnomaly: hasLatestAnomaly,
+                  width: width,
+                  height: height,
+                  lighthouseSize: lighthouseSize,
+                ),
+                if (hasLatestAnomaly) ...[
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      _showPhareModal(
+                        context,
+                        expected,
+                        observed,
+                        phareStatus,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: phareColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('En savoir plus'),
+                  ),
+                ],
+              ],
+            );
+          }
+
+          final phonePhare = buildPhare(
+            width: 260,
+            height: 210,
+            lighthouseSize: 190,
+          );
+
+          final summarySection = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
               Text('Résumé du jour', style: sectionLabelStyle),
               const SizedBox(height: 14),
-              // Stats en cartes individuelles
               _buildDailySummaryStats(observedForLastActivity),
-              const SizedBox(height: 32),
+            ],
+          );
 
-              // === PLAN DU LOGEMENT (AMÉLIORÉ) ===
-              Consumer(
-                builder: (context, ref, child) {
-                  final rooms = ref.watch(roomsProvider);
-                  final sensors = ref.watch(sensorsProvider);
-                  final selectedRoom = ref.watch(selectedRoomProvider);
-                  final activeSensor = ref.watch(activateSensorProvider);
-                  final latestLocation = observedForLastActivity.isEmpty
-                      ? null
-                      : observedForLastActivity.reduce(
-                          (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
-                        );
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _formatLatestLocationLabel(latestLocation),
-                        style: sectionLabelStyle,
-                      ),
-                      const SizedBox(height: 14),
-                      // Carte
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(
-                          height: 240,
-                          child: FloorPlanWidget(
-                            rooms: rooms,
-                            sensors: sensors,
-                            selectedRoomId: selectedRoom,
-                            activeSensorId: activeSensor,
-                            height: double.infinity,
-                            frameless: true,
-                            showHeader: false,
-                            showLegend: false,
-                            onRoomTap: (roomId) {
-                              ref.read(selectedRoomProvider.notifier).state =
-                                  roomId;
-                            },
+          if (isWide) {
+            // Tablette : layout deux colonnes, pas de scroll.
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Center(
+                          child: Column(
+                            children: [
+                              avatar,
+                              const SizedBox(height: 10),
+                              nameText,
+                            ],
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        const SizedBox(height: 20),
+                        infoCard,
+                        const Spacer(),
+                        summarySection,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 6,
+                    child: LayoutBuilder(
+                      builder: (context, slot) {
+                        // Phare = carré ~5/6 d'aspect (260x210). On prend
+                        // tout l'espace dispo en respectant ce ratio.
+                        const aspect = 260 / 210;
+                        final reserveBtn = hasLatestAnomaly ? 56.0 : 0.0;
+                        final maxH = slot.maxHeight - reserveBtn;
+                        final maxW = slot.maxWidth;
+                        var w = maxW;
+                        var h = w / aspect;
+                        if (h > maxH) {
+                          h = maxH;
+                          w = h * aspect;
+                        }
+                        return Center(
+                          child: buildPhare(
+                            width: w,
+                            height: h,
+                            lighthouseSize: h * 0.9,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 32),
+            );
+          }
 
-              // === DERNIÈRES ACTIVITÉS - SUPPRIMÉ ===
-              // Section "Dernières activités" has been removed as per requirements
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
+          // Téléphone : layout vertical, scrollable.
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Column(
+                      children: [
+                        avatar,
+                        const SizedBox(height: 10),
+                        nameText,
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  infoCard,
+                  const SizedBox(height: 20),
+                  Center(child: phonePhare),
+                  const SizedBox(height: 28),
+                  summarySection,
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -916,32 +999,21 @@ class HomePage extends ConsumerWidget {
     return ActivityStatus.critical;
   }
 
-  String _formatLastActivityBanner(Activity? activity) {
-    if (activity == null) return 'Dernière activité: —';
-
-    final type = activity.type.toLowerCase();
-    final emoji = switch (type) {
-      final t when t.contains('dejeuner') || t.contains('déjeuner') => '🍽️',
-      final t when t.contains('petit') => '🥐',
-      final t when t.contains('sleep') || t.contains('sommeil') => '😴',
-      final t when t.contains('toilet') || t.contains('toilettes') => '🚻',
-      _ => '📌',
-    };
-
+  String _formatLastActivityValue(Activity? activity) {
+    if (activity == null) return '—';
     final typeFormatted = activity.type.isEmpty
         ? 'Activité'
         : '${activity.type[0].toUpperCase()}${activity.type.substring(1)}';
     final time =
         '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
-
-    return 'Dernière activité: $emoji $typeFormatted $time';
+    return '$typeFormatted • $time';
   }
 
-  String _formatLatestLocationLabel(Activity? activity) {
-    if (activity == null) return 'Dernière localisation: inconnue';
+  String _formatLatestLocationValue(Activity? activity) {
+    if (activity == null) return 'Inconnue';
     final time =
         '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
-    return 'Dernière localisation: ${activity.room ?? 'Inconnue'} • $time';
+    return '${activity.room ?? 'Inconnue'} • $time';
   }
 }
 
@@ -976,43 +1048,43 @@ class _StatCard extends StatelessWidget {
 
     return Expanded(
       flex: flex,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withValues(alpha: 0.1),
-                color.withValues(alpha: 0.05),
-              ],
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppTheme.darkBgLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.textSecondary.withValues(alpha: 0.12),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 22),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 10),
-              Text(
-                value,
-                style: statValueStyle.copyWith(color: color),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                style: infoLabelStyle,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: statValueStyle.copyWith(color: AppTheme.textPrimary),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: infoLabelStyle,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
@@ -1119,6 +1191,67 @@ class _ActivityCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+
+  const _InfoTile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

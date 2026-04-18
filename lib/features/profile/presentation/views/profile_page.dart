@@ -82,7 +82,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 20),
                   // Nom
                   const Text(
-                    'Réné Martin',
+                    'René Martin',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
