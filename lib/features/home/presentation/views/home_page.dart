@@ -8,6 +8,7 @@ import 'package:familly_baecon/features/journal/presentation/providers/backend_p
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/core/providers/profile_image_provider.dart';
+import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
@@ -325,7 +326,7 @@ class HomePage extends ConsumerWidget {
         : ActivityStatus.ok;
     final phareColor = switch (phareStatus) {
       ActivityStatus.ok => const Color(0xFF10B981),
-      ActivityStatus.warning => const Color(0xFFF59E0B),
+      ActivityStatus.warning => const Color(0xFFEF4444),
       ActivityStatus.critical => const Color(0xFFEF4444),
     };
     final lastActivity = observedForLastActivity.isEmpty
@@ -390,7 +391,7 @@ class HomePage extends ConsumerWidget {
           );
 
           final nameText = Text(
-            'René',
+            ref.watch(watchedPersonNameProvider),
             textAlign: TextAlign.center,
             style: textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w700,
@@ -451,13 +452,23 @@ class HomePage extends ConsumerWidget {
                 if (hasLatestAnomaly) ...[
                   const SizedBox(height: 12),
                   ElevatedButton(
-                    onPressed: () {
-                      _showPhareModal(
+                    onPressed: () async {
+                      final container = ProviderScope.containerOf(
                         context,
-                        expected,
-                        observed,
-                        phareStatus,
+                        listen: false,
                       );
+                      final anomalies = await container.read(
+                        liveAnomaliesProvider.future,
+                      );
+                      final latestId = anomalies.isNotEmpty
+                          ? anomalies.first.id
+                          : null;
+                      if (latestId != null) {
+                        container
+                            .read(focusedAnomalyIdProvider.notifier)
+                            .state = latestId;
+                      }
+                      onNavigate?.call(2);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: phareColor,
@@ -625,7 +636,7 @@ class HomePage extends ConsumerWidget {
           label: 'Repas pris',
           value: '${dayStats.mealsCount}/$expectedMeals',
           icon: Icons.restaurant,
-          color: AppTheme.activityOrange,
+          color: AppTheme.activityPurple,
           flex: 1,
         ),
         const SizedBox(width: 10),
@@ -691,159 +702,6 @@ class HomePage extends ConsumerWidget {
     return worst;
   }
 
-  /// Afficher la modal du phare avec les détails
-  void _showPhareModal(
-    BuildContext context,
-    List<Activity> expected,
-    List<Activity> observed,
-    ActivityStatus status,
-  ) {
-    final colors = {
-      ActivityStatus.ok: const Color(0xFF10B981),
-      ActivityStatus.warning: const Color(0xFFF59E0B),
-      ActivityStatus.critical: const Color(0xFFEF4444),
-    };
-
-    final labels = {
-      ActivityStatus.ok: 'Tout va bien',
-      ActivityStatus.warning: 'Anomalie légère',
-      ActivityStatus.critical: 'Anomalie grave',
-    };
-
-    final descriptions = {
-      ActivityStatus.ok: 'Les activités correspondent parfaitement',
-      ActivityStatus.warning: 'Quelques écarts détectés',
-      ActivityStatus.critical: 'Des anomalies importantes',
-    };
-
-    final color = colors[status]!;
-    final label = labels[status]!;
-    final description = descriptions[status]!;
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (BuildContext dialogContext) {
-        return Center(
-          child: SingleChildScrollView(
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Cercle avec icône
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: color,
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withOpacity(0.6),
-                          blurRadius: 12,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      status == ActivityStatus.ok
-                          ? Icons.check_circle_rounded
-                          : status == ActivityStatus.warning
-                          ? Icons.warning_rounded
-                          : Icons.error_rounded,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: color,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  if (status != ActivityStatus.ok)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Text(
-                        'Consultez les détails pour comprendre les anomalies détectées',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade500,
-                          fontStyle: FontStyle.italic,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  if (status != ActivityStatus.ok)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          Navigator.pop(dialogContext);
-                          final anomalies = await ProviderScope.containerOf(
-                            context,
-                            listen: false,
-                          ).read(liveAnomaliesProvider.future);
-                          final latestId = anomalies.isNotEmpty
-                              ? anomalies.first.id
-                              : null;
-                          if (latestId != null) {
-                            ProviderScope.containerOf(context, listen: false)
-                                    .read(focusedAnomalyIdProvider.notifier)
-                                    .state =
-                                latestId;
-                          }
-                          onNavigate?.call(2);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.activityOrange,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
-                          ),
-                        ),
-                        child: const Text(
-                          'Voir l’anomalie',
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: color,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
-                      ),
-                    ),
-                    child: const Text(
-                      'Fermer',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   void _showRealtimeAlertDialog(
     BuildContext context,
     WidgetRef ref,
@@ -851,121 +709,172 @@ class HomePage extends ConsumerWidget {
     List<Activity> expected,
     List<Activity> observed,
   ) {
-    final isHigh = alert.severity == 'high';
-    final accentColor = isHigh ? AppTheme.activityRed : AppTheme.activityOrange;
+    final accentColor = AppTheme.activityRed;
     final textTheme = Theme.of(context).textTheme;
-    final iconSize = Theme.of(context).iconTheme.size ?? 24;
-    final priorityText = isHigh ? 'Priorité haute' : 'Priorité moyenne';
-    final icon = isHigh
-        ? Icons.priority_high_rounded
-        : Icons.warning_amber_rounded;
     final typeLabel = _anomalyLabel(alert.anomalyType);
 
     showDialog(
       context: context,
       barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.75),
+      barrierColor: Colors.black.withValues(alpha: 0.6),
       builder: (dialogContext) {
-        return Center(
-          child: SingleChildScrollView(
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
-              ),
-              contentPadding: EdgeInsets.zero,
-              content: Container(
-                width: MediaQuery.of(context).size.width * 0.84,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 24,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 24,
+          ),
+          child: LayoutBuilder(
+            builder: (ctx, constraints) {
+              final maxW = constraints.maxWidth.clamp(0, 420).toDouble();
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxW),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppTheme.darkBgLight,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accentColor.withValues(alpha: 0.18),
+                        blurRadius: 32,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(icon, color: accentColor, size: iconSize),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Anomalie détectée',
-                          style: TextStyle(
-                            fontSize: textTheme.titleLarge?.fontSize ?? 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '$priorityText • $typeLabel',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: accentColor,
-                        fontWeight: FontWeight.w600,
-                        fontSize: textTheme.bodySmall?.fontSize ?? 12,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      alert.description,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: textTheme.bodyMedium?.fontSize,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: 210,
-                      child: PhareMagnifique(
-                        expected: expected,
-                        observed: observed,
-                        alertSeverity: alert.severity,
-                        forceGyrophare: true,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(dialogContext),
-                            child: const Text('Plus tard'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () async {
-                              Navigator.pop(dialogContext);
-                              final anomalies = await ref.read(
-                                liveAnomaliesProvider.future,
-                              );
-                              if (!context.mounted) return;
-                              final latestId = anomalies.isNotEmpty
-                                  ? anomalies.first.id
-                                  : null;
-                              if (latestId != null) {
-                                ref
-                                        .read(focusedAnomalyIdProvider.notifier)
-                                        .state =
-                                    latestId;
-                              }
-                              onNavigate?.call(2);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: accentColor,
+                        Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                accentColor,
+                                accentColor.withValues(alpha: 0.78),
+                              ],
                             ),
-                            child: const Text('Voir l’anomalie'),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(28),
+                            ),
+                          ),
+                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
+                          child: Text(
+                            typeLabel,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize:
+                                  (textTheme.headlineSmall?.fontSize ?? 24) +
+                                  2,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _humanizeAlertDescription(alert),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: AppTheme.textPrimary,
+                                  fontSize:
+                                      textTheme.bodyMedium?.fontSize ?? 14,
+                                  height: 1.45,
+                                ),
+                              ),
+                              if (_extractAlertMetrics(alert) != null) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    _extractAlertMetrics(alert)!,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: accentColor,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                height: 190,
+                                child: PhareMagnifique(
+                                  expected: expected,
+                                  observed: observed,
+                                  alertSeverity: alert.severity,
+                                  forceGyrophare: true,
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    Navigator.pop(dialogContext);
+                                    final anomalies = await ref.read(
+                                      liveAnomaliesProvider.future,
+                                    );
+                                    if (!context.mounted) return;
+                                    final latestId = anomalies.isNotEmpty
+                                        ? anomalies.first.id
+                                        : null;
+                                    if (latestId != null) {
+                                      ref
+                                              .read(
+                                                focusedAnomalyIdProvider
+                                                    .notifier,
+                                              )
+                                              .state =
+                                          latestId;
+                                    }
+                                    onNavigate?.call(2);
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: accentColor,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 14,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: const Text(
+                                    'Voir l’anomalie',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         );
       },
@@ -976,12 +885,114 @@ class HomePage extends ConsumerWidget {
     return switch (anomalyType) {
       'missing' => 'Activité manquante',
       'timing' => 'Horaire inhabituel',
-      'duration_short' => 'Durée courte',
-      'duration_long' => 'Durée longue',
-      'freq_high' => 'Fréquence élevée',
-      'freq_low' => 'Fréquence faible',
-      _ => anomalyType,
+      'duration_short' => 'Activité plus courte que d’habitude',
+      'duration_long' => 'Activité plus longue que d’habitude',
+      'freq_high' => 'Activité trop fréquente',
+      'freq_low' => 'Activité plus rare que d’habitude',
+      _ => 'Comportement inhabituel',
     };
+  }
+
+  String _humanizeAlertDescription(AlertItem alert) {
+    final activity = _extractActivityName(alert);
+    return _phraseFor(alert.anomalyType, activity);
+  }
+
+  /// Extrait les valeurs techniques (ratio, score…) du message brut
+  /// backend, sous forme courte et lisible. Renvoie null si rien d'utile.
+  String? _extractAlertMetrics(AlertItem alert) {
+    final raw = alert.description;
+    final paren = RegExp(r'\(([^)]+)\)').firstMatch(raw)?.group(1)?.trim();
+    if (paren == null || paren.isEmpty) return null;
+    // ratio: 2.3 vs normal: 1.0  ->  2.3× la durée habituelle
+    final ratioVs = RegExp(
+      r'ratio\s*[:=]\s*([\d.]+)\s*vs\s*normal\s*[:=]\s*([\d.]+)',
+      caseSensitive: false,
+    ).firstMatch(paren);
+    if (ratioVs != null) {
+      final r = double.tryParse(ratioVs.group(1) ?? '');
+      if (r != null) {
+        final pct = ((r - 1) * 100).round();
+        if (r > 1) return '+$pct % par rapport à la moyenne';
+        if (r < 1) return '$pct % par rapport à la moyenne';
+      }
+    }
+    // score de similarité temporelle: 0.12  ->  Similarité 12 %
+    final score = RegExp(
+      r'(?:score\s+de\s+)?similarit[ée][^:=]*[:=]\s*([\d.]+)',
+      caseSensitive: false,
+    ).firstMatch(paren);
+    if (score != null) {
+      final s = double.tryParse(score.group(1) ?? '');
+      if (s != null) return 'Similarité ${(s * 100).round()} %';
+    }
+    // ratio simple
+    final ratio = RegExp(
+      r'ratio\s*[:=]\s*([\d.]+)',
+      caseSensitive: false,
+    ).firstMatch(paren);
+    if (ratio != null) {
+      final r = double.tryParse(ratio.group(1) ?? '');
+      if (r != null) return 'Ratio ${r.toStringAsFixed(1)}×';
+    }
+    return paren;
+  }
+
+  /// Détecte l'activité concernée (souper, déjeuner, toilettes…) à partir
+  /// du message brut backend ou du titre de l'alerte.
+  String? _extractActivityName(AlertItem alert) {
+    final source = '${alert.description} ${alert.title}'.toLowerCase();
+    if (source.contains('petit_dejeuner') ||
+        source.contains('petit-déjeuner') ||
+        source.contains('petit déjeuner')) {
+      return 'le petit-déjeuner';
+    }
+    if (source.contains('dejeuner') || source.contains('déjeuner')) {
+      return 'le déjeuner';
+    }
+    if (source.contains('souper') || source.contains('dîner') ||
+        source.contains('diner')) {
+      return 'le souper';
+    }
+    if (source.contains('toilette')) return 'le passage aux toilettes';
+    if (source.contains('sommeil') || source.contains('sleep') ||
+        source.contains('chambre')) {
+      return 'le sommeil';
+    }
+    if (source.contains('télévision') || source.contains('television')) {
+      return 'le moment télévision';
+    }
+    if (source.contains('repas')) return 'le repas';
+    return null;
+  }
+
+  String _phraseFor(String anomalyType, String? activity) {
+    final subject = activity ?? 'l’activité';
+    final cap = '${subject[0].toUpperCase()}${subject.substring(1)}';
+    return switch (anomalyType) {
+      'missing' => '$cap n’a pas été détecté${_eIfNeeded(subject)} aujourd’hui.',
+      'timing' =>
+        '$cap a eu lieu à un horaire inhabituel par rapport à la routine.',
+      'duration_short' =>
+        '$cap a duré nettement moins longtemps que d’habitude.',
+      'duration_long' =>
+        '$cap a duré nettement plus longtemps que d’habitude.',
+      'freq_high' => '$cap est revenu${_eIfNeeded(subject)} plus souvent '
+          'que d’habitude aujourd’hui.',
+      'freq_low' => '$cap a eu lieu moins souvent que d’habitude.',
+      _ => '$cap présente un écart par rapport à la routine habituelle.',
+    };
+  }
+
+  /// Accord simple du participe passé pour les sujets féminins évidents
+  /// ("la sieste", "la promenade"…). Pas exhaustif, mais évite "détecté"
+  /// devant un sujet manifestement féminin.
+  String _eIfNeeded(String subject) {
+    final s = subject.toLowerCase();
+    if (s.startsWith('la ') || s.startsWith('l’') && s.contains('activité')) {
+      return 'e';
+    }
+    return '';
   }
 
   /// Calculer le statut d'une activité

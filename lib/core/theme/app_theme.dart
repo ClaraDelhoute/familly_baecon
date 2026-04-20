@@ -53,8 +53,8 @@ class AppTheme {
 
   // Couleurs activities
   static const Color activityGreen = Color(0xFF10B981);
-  static const Color activityOrange = Color(0xFFF59E0B);
   static const Color activityRed = Color(0xFFEF4444);
+  static const Color activityPurple = Color(0xFF8B5CF6);
 
   static ThemeData buildTheme({
     double textScaleFactor = 1.0,

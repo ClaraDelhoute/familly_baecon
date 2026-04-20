@@ -43,7 +43,7 @@ class AlertesPage extends ConsumerWidget {
               itemBuilder: (context, index) {
                 final alert = alerts[index];
                 final isHigh = alert.severity == 'high';
-                final color = isHigh ? AppTheme.activityRed : AppTheme.activityOrange;
+                final color = AppTheme.activityRed;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),

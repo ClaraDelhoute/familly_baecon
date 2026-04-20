@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/journal/data/models/daily_activity_model.dart';
 import 'package:familly_baecon/features/journal/data/models/notification_model.dart';
+import 'package:familly_baecon/features/journal/data/models/routine_activity_model.dart';
 import 'package:familly_baecon/features/journal/data/models/sensor_event_model.dart';
 
 class JournalRemoteDataSource {
@@ -104,6 +105,27 @@ class JournalRemoteDataSource {
         )
         .toList();
     print('[REST] /api/anomalies rows=${items.length}');
+    return items;
+  }
+
+  Future<List<RoutineActivityModel>> fetchRoutine() async {
+    print('[REST] GET /api/routine');
+    final response = await _dio.get('/api/routine').catchError((error) {
+      if (error is DioException && error.response?.statusCode == 404) {
+        return Response(
+          requestOptions: error.requestOptions,
+          data: const <dynamic>[],
+          statusCode: 200,
+        );
+      }
+      throw error;
+    });
+    final payload = response.data;
+    if (payload is! List) return const <RoutineActivityModel>[];
+    final items = payload
+        .map((item) => RoutineActivityModel.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+    print('[REST] /api/routine rows=${items.length}');
     return items;
   }
 }

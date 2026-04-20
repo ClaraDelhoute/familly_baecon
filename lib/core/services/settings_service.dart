@@ -5,6 +5,17 @@ import '../models/absence_period.dart';
 class SettingsService {
   static const _profileImageKey = 'profile_image_path';
   static const _absenceKey = 'user_absence_period';
+  static const _watchedPersonNameKey = 'watched_person_name';
+
+  Future<void> saveWatchedPersonName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_watchedPersonNameKey, name);
+  }
+
+  Future<String> loadWatchedPersonName() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_watchedPersonNameKey) ?? 'René';
+  }
 
   Future<void> saveProfileImagePath(String path) async {
     final prefs = await SharedPreferences.getInstance();

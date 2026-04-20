@@ -112,7 +112,7 @@ class _ActivityTimelineColumn extends StatelessWidget {
     if (activity.type.toLowerCase().contains('television')) {
       return AppTheme.accentCyan;
     }
-    return AppTheme.activityOrange;
+    return AppTheme.activityPurple;
   }
 
   String _getActivityLabel(Activity activity) {

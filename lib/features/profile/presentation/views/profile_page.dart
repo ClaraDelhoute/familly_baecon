@@ -258,7 +258,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildActionButton(
                     label: 'Réinitialiser les paramètres',
                     icon: Icons.refresh,
-                    color: AppTheme.activityOrange,
+                    color: AppTheme.activityRed,
                     onPressed: _showResetDialog,
                   ),
                   const SizedBox(height: 8),
@@ -376,7 +376,7 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Row(
               children: [
-                Icon(Icons.date_range, color: AppTheme.activityOrange, size: 20),
+                Icon(Icons.date_range, color: AppTheme.accentCyan, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Période d\'absence',

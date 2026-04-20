@@ -129,7 +129,7 @@ class _PhareIndicatorState extends State<PhareIndicator>
       case ActivityStatus.ok:
         return const Color(0xFF10B981);
       case ActivityStatus.warning:
-        return const Color(0xFFF59E0B);
+        return const Color(0xFFEF4444);
       case ActivityStatus.critical:
       default:
         return const Color(0xFFEF4444);
@@ -1010,7 +1010,7 @@ class PhareStatusIndicator extends StatelessWidget {
       case ActivityStatus.ok:
         return const Color(0xFF10B981);
       case ActivityStatus.warning:
-        return const Color(0xFFF59E0B);
+        return const Color(0xFFEF4444);
       case ActivityStatus.critical:
       default:
         return const Color(0xFFEF4444);

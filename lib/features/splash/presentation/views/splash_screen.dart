@@ -52,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen>
     final lighthouseColor = switch (AppBadgeService.currentStatus
         .toLowerCase()) {
       'critical' => const Color(0xFFEF4444),
-      'warning' => const Color(0xFFF59E0B),
+      'warning' => const Color(0xFFEF4444),
       _ => const Color(0xFF10B981),
     };
 

@@ -151,7 +151,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 size: (iconSize * 0.5).clamp(12, 20),
                 color: serverConnected
                     ? Colors.greenAccent
-                    : Colors.orangeAccent,
+                    : Colors.redAccent,
               ),
               title: Text(
                 'Serveur ${serverConnected ? 'disponible' : 'indisponible'}',
@@ -168,7 +168,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             child: Column(
               children: [
                 SwitchListTile(
-                  secondary: Icon(Icons.event_busy, size: iconSize, color: AppTheme.activityOrange),
+                  secondary: Icon(Icons.event_busy, size: iconSize, color: AppTheme.accentCyan),
                   title: const Text('Mode Absence'),
                   subtitle: const Text('Désactiver le suivi et les notifications'),
                   value: _isAbsenceActive,

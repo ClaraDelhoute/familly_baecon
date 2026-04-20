@@ -719,6 +719,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   }) {
     final isTinyCard = height < 48;
     final isSmallCard = height < 72;
+    final isCompactCard = height < 88;
     final background = Color.lerp(Colors.white, color, 0.22) ?? Colors.white;
     final borderColor = Color.lerp(Colors.black, color, 0.35) ?? Colors.black;
     final timeLabel = _formatObservedRange(startAt, endAt, durationMin);
@@ -735,10 +736,14 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
           border: Border.all(color: borderColor, width: 1.8),
           borderRadius: BorderRadius.circular(6),
         ),
-        child: isTinyCard
-            ? Center(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compactLabel = '$emoji ${label.split(' ').first}';
+
+            if (isTinyCard || constraints.maxHeight < 42) {
+              return Center(
                 child: Text(
-                  '$emoji ${label.split(' ').first}',
+                  compactLabel,
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -747,34 +752,57 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
+              );
+            }
+
+            if (isCompactCard || constraints.maxHeight < 58) {
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '$emoji $label',
                     style: TextStyle(
-                      fontSize: isSmallCard ? 13 : 15,
+                      fontSize: isSmallCard ? 13 : 14,
                       fontWeight: FontWeight.w900,
                       color: Colors.black,
-                    ),
-                    maxLines: isSmallCard ? 1 : 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    timeLabel,
-                    style: TextStyle(
-                      fontSize: isSmallCard ? 11 : 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black.withValues(alpha: 0.75),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
-              ),
+              );
+            }
+
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$emoji $label',
+                  style: TextStyle(
+                    fontSize: isSmallCard ? 13 : 15,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                  maxLines: isSmallCard ? 1 : 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  timeLabel,
+                  style: TextStyle(
+                    fontSize: isSmallCard ? 11 : 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black.withValues(alpha: 0.75),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -862,6 +890,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
     final heightPx = (endTotal - startTotal) * pixelsPerMinute;
     final isTinyCard = heightPx < 44;
     final isSmallCard = heightPx < 64;
+    final isCompactCard = heightPx < 88;
 
     final iconToShow = icon.isNotEmpty ? icon : _emojiFromLabel(label);
     final timeRange =
@@ -889,46 +918,76 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
               ),
             ],
           ),
-          child: isTinyCard
-              ? Text(
-                  '${iconToShow.isEmpty ? '' : '$iconToShow '}${compactLabel.split(' ').first}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compactText =
+                  '${iconToShow.isEmpty ? '' : '$iconToShow '}${compactLabel.split(' ').first}';
+
+              if (isTinyCard || constraints.maxHeight < 40) {
+                return Center(
+                  child: Text(
+                    compactText,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : Column(
+                );
+              }
+
+              if (isCompactCard || constraints.maxHeight < 56) {
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       '${iconToShow.isEmpty ? '' : '$iconToShow '}$compactLabel',
                       style: TextStyle(
-                        fontSize: isSmallCard ? 12 : 14,
+                        fontSize: isSmallCard ? 12 : 13,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (!isSmallCard) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        '🕒 $timeRange',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black87,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
                   ],
-                ),
+                );
+              }
+
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${iconToShow.isEmpty ? '' : '$iconToShow '}$compactLabel',
+                    style: TextStyle(
+                      fontSize: isSmallCard ? 12 : 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (!isSmallCard) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '🕒 $timeRange',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

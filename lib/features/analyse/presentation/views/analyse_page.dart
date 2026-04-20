@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
@@ -13,11 +15,62 @@ class AnalysePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final observed =
         ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
-    final dailyStats = BehaviorStatsService.buildDailyStats(
-      observed,
-      maxDays: 28,
-    );
-    final declineMetrics = BehaviorStatsService.buildDeclineMetrics(dailyStats);
+    final anomalies =
+        ref.watch(liveAnomaliesProvider).valueOrNull ?? const [];
+    final name = ref.watch(watchedPersonNameProvider);
+
+    final dailyStats = BehaviorStatsService.buildDailyStats(observed, maxDays: 14);
+
+    // Stats semaine courante (7 derniers jours)
+    final weekStats = dailyStats.length >= 7
+        ? dailyStats.sublist(dailyStats.length - 7)
+        : dailyStats;
+
+    final now = DateTime.now();
+    final weekAgo = now.subtract(const Duration(days: 7));
+    final anomaliesThisWeek =
+        anomalies.where((a) => a.lastSeenAt.isAfter(weekAgo)).length;
+
+    final mealsThisWeek = weekStats.fold(0, (s, d) => s + d.mealsCount);
+    final maxMealsPossible = weekStats.length * 3;
+
+    final avgSleepH = weekStats.isEmpty
+        ? 0.0
+        : weekStats.fold(0, (s, d) => s + d.sleepMinutes) /
+            weekStats.length /
+            60;
+
+    // Routine score : % de jours avec ≥2 repas et ≥4h de sommeil
+    final goodDays = weekStats
+        .where((d) => d.mealsCount >= 2 && d.sleepMinutes >= 240)
+        .length;
+    final routineScore =
+        weekStats.isEmpty ? 0.0 : goodDays / weekStats.length;
+
+    // Nuits courtes : sommeil < 5h
+    final disturbedNights =
+        weekStats.where((d) => d.sleepMinutes < 300).length;
+
+    // Jours sans activité détectée
+    final inactiveDays =
+        weekStats.where((d) => d.totalActivities == 0).length;
+
+    // Lever moyen : moyenne des firstActivityMinute des jours avec données
+    final daysWithFirst = weekStats
+        .where((d) => d.firstActivityMinute != null)
+        .toList();
+    final avgFirstMinute = daysWithFirst.isEmpty
+        ? null
+        : daysWithFirst
+                .map((d) => d.firstActivityMinute!)
+                .reduce((a, b) => a + b) /
+            daysWithFirst.length;
+    final avgFirstLabel = avgFirstMinute == null
+        ? '--'
+        : '${(avgFirstMinute ~/ 60).toString().padLeft(2, '0')}h'
+            '${(avgFirstMinute % 60).round().toString().padLeft(2, '0')}';
+    final avgFirstGood =
+        avgFirstMinute != null && avgFirstMinute >= 6 * 60 && avgFirstMinute <= 10 * 60;
 
     return Scaffold(
       appBar: AppBar(
@@ -26,37 +79,103 @@ class AnalysePage extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Paramètres',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const SettingsPage()),
-              );
-            },
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
             icon: const Icon(Icons.settings),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _SectionHeader(title: 'Indicateurs'),
-            const SizedBox(height: 14),
-            ...declineMetrics.map(
-              (metric) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _DeclineMetricCard(metric: metric),
-              ),
+            _RoutineGauge(score: routineScore, name: name),
+            const SizedBox(height: 20),
+            _SectionLabel('Cette semaine'),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.restaurant_rounded,
+                    color: AppTheme.activityPurple,
+                    value: '$mealsThisWeek',
+                    label: 'Repas pris',
+                    sub: 'sur $maxMealsPossible possibles',
+                    good: mealsThisWeek >= (maxMealsPossible * 0.75).round(),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.bedtime_rounded,
+                    color: AppTheme.activityGreen,
+                    value: '${avgSleepH.toStringAsFixed(1)}h',
+                    label: 'Sommeil moyen',
+                    sub: 'par nuit',
+                    good: avgSleepH >= 6,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 24),
-            const _SectionHeader(title: 'Évolution quotidienne (28 jours)'),
-            const SizedBox(height: 14),
-            _SimpleTrendChart(dailyStats: dailyStats),
-            const SizedBox(height: 24),
-            const _SectionHeader(title: 'Résumé des tendances'),
-            const SizedBox(height: 14),
-            _TrendSummaryCard(metrics: declineMetrics),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.nightlight_round,
+                    color: AppTheme.accentBlue,
+                    value: '$disturbedNights',
+                    label: 'Nuits courtes',
+                    sub: 'moins de 5h de sommeil',
+                    good: disturbedNights == 0,
+                    goodIsZero: true,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.warning_amber_rounded,
+                    color: AppTheme.activityRed,
+                    value: '$anomaliesThisWeek',
+                    label: 'Anomalies',
+                    sub: 'détectées cette semaine',
+                    good: anomaliesThisWeek == 0,
+                    goodIsZero: true,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.wb_sunny_rounded,
+                    color: AppTheme.accentCyan,
+                    value: avgFirstLabel,
+                    label: 'Lever moyen',
+                    sub: 'première activité du matin',
+                    good: avgFirstGood,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StatTile(
+                    icon: Icons.do_not_disturb_on_rounded,
+                    color: AppTheme.activityRed,
+                    value: '$inactiveDays',
+                    label: 'Jours sans activité',
+                    sub: 'aucun capteur déclenché',
+                    good: inactiveDays == 0,
+                    goodIsZero: true,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -64,116 +183,240 @@ class AnalysePage extends ConsumerWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader({required this.title});
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Container(
-          width: 36,
-          height: 3,
-          decoration: BoxDecoration(
-            color: AppTheme.accentBlue.withValues(alpha: 0.45),
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      ],
+    return Text(
+      text,
+      style: TextStyle(
+        color: AppTheme.textSecondary,
+        fontWeight: FontWeight.w700,
+        fontSize: 13,
+        letterSpacing: 0.3,
+      ),
     );
   }
 }
 
-BoxDecoration _surfaceDecoration() => BoxDecoration(
-      color: AppTheme.darkBgLight,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(
-        color: AppTheme.textSecondary.withValues(alpha: 0.12),
-      ),
-    );
+// ── Jauge circulaire ────────────────────────────────────────────────────────
 
-class _DeclineMetricCard extends StatelessWidget {
-  final DeclineMetric metric;
+class _RoutineGauge extends StatelessWidget {
+  final double score; // 0.0 → 1.0
+  final String name;
 
-  const _DeclineMetricCard({required this.metric});
+  const _RoutineGauge({required this.score, required this.name});
 
   @override
   Widget build(BuildContext context) {
-    final decline = metric.isDecline;
-    final color = decline ? AppTheme.activityRed : AppTheme.activityGreen;
-    final delta = metric.deltaPercent;
-    final deltaLabel = '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}%';
+    final pct = (score * 100).round();
+    final Color accent = pct >= 75
+        ? AppTheme.activityGreen
+        : pct >= 50
+            ? AppTheme.accentBlue
+            : AppTheme.activityRed;
+
+    final String label = pct >= 75
+        ? 'Bonne semaine'
+        : pct >= 50
+            ? 'Semaine correcte'
+            : 'Semaine difficile';
+
+    final String sub = pct >= 75
+        ? 'La routine de $name est bien respectée.'
+        : pct >= 50
+            ? 'Quelques écarts dans la routine de $name.'
+            : 'La routine de $name est perturbée cette semaine.';
 
     return Container(
-      decoration: _surfaceDecoration(),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accent.withValues(alpha: 0.85), accent.withValues(alpha: 0.6)],
+        ),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.2),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 110,
+            height: 110,
+            child: CustomPaint(
+              painter: _GaugePainter(score: score, color: Colors.white),
+              child: Center(
+                child: Text(
+                  '$pct%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  sub,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GaugePainter extends CustomPainter {
+  final double score;
+  final Color color;
+
+  const _GaugePainter({required this.score, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.shortestSide / 2) - 8;
+    const strokeWidth = 8.0;
+    const startAngle = -math.pi * 0.75;
+    const sweepTotal = math.pi * 1.5;
+
+    final trackPaint = Paint()
+      ..color = color.withValues(alpha: 0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    final fillPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepTotal,
+      false,
+      trackPaint,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepTotal * score.clamp(0.0, 1.0),
+      false,
+      fillPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GaugePainter old) => old.score != score;
+}
+
+// ── Tuile stat ───────────────────────────────────────────────────────────────
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+  final String sub;
+  final bool good;
+  final bool goodIsZero;
+
+  const _StatTile({
+    required this.icon,
+    required this.color,
+    required this.value,
+    required this.label,
+    required this.sub,
+    required this.good,
+    this.goodIsZero = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = good ? color : AppTheme.activityRed;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.darkBgLight,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: accent.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
+              color: accent.withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              decline ? Icons.trending_down_rounded : Icons.trending_up_rounded,
-              color: color,
-              size: 22,
+            child: Icon(icon, color: accent, size: 20),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            value,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
+              height: 1,
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  metric.label,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '7j: ${metric.recentAverage.toStringAsFixed(1)} ${metric.unit}  •  '
-                  'Réf: ${metric.previousAverage.toStringAsFixed(1)} ${metric.unit}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              deltaLabel,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 12,
             ),
           ),
         ],
@@ -182,200 +425,3 @@ class _DeclineMetricCard extends StatelessWidget {
   }
 }
 
-class _SimpleTrendChart extends StatelessWidget {
-  final List<DailyBehaviorStats> dailyStats;
-
-  const _SimpleTrendChart({required this.dailyStats});
-
-  @override
-  Widget build(BuildContext context) {
-    if (dailyStats.isEmpty) {
-      return Container(
-        decoration: _surfaceDecoration(),
-        height: 220,
-        child: Center(
-          child: Text(
-            'Pas assez de données pour afficher un graphique.',
-            style: TextStyle(color: AppTheme.textSecondary),
-          ),
-        ),
-      );
-    }
-
-    final maxSleep = dailyStats
-        .map((d) => d.sleepMinutes / 60)
-        .reduce((a, b) => a > b ? a : b)
-        .clamp(1, 24);
-    final maxMeals = dailyStats
-        .map((d) => d.mealsCount.toDouble())
-        .reduce((a, b) => a > b ? a : b)
-        .clamp(1, 6);
-    final maxOther = dailyStats
-        .map((d) => d.otherActivitiesCount.toDouble())
-        .reduce((a, b) => a > b ? a : b)
-        .clamp(1, 20);
-
-    return Container(
-      decoration: _surfaceDecoration(),
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            height: 200,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (final day in dailyStats.take(14))
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                width: 6,
-                                height:
-                                    90 * ((day.sleepMinutes / 60) / maxSleep),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.activityGreen,
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                width: 6,
-                                height: 60 * (day.mealsCount / maxMeals),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.activityOrange,
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Container(
-                                width: 6,
-                                height:
-                                    50 * (day.otherActivitiesCount / maxOther),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentBlue,
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 14,
-            runSpacing: 6,
-            children: const [
-              _LegendDot(color: AppTheme.activityGreen, label: 'Sommeil (h)'),
-              _LegendDot(color: AppTheme.activityOrange, label: 'Repas'),
-              _LegendDot(color: AppTheme.accentBlue, label: 'Autres'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TrendSummaryCard extends StatelessWidget {
-  final List<DeclineMetric> metrics;
-
-  const _TrendSummaryCard({required this.metrics});
-
-  @override
-  Widget build(BuildContext context) {
-    final declining = metrics.where((m) => m.isDecline).toList();
-    final hasIssue = declining.isNotEmpty;
-    final accent = hasIssue ? AppTheme.activityOrange : AppTheme.activityGreen;
-
-    return Container(
-      decoration: _surfaceDecoration(),
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              hasIssue
-                  ? Icons.warning_amber_rounded
-                  : Icons.check_circle_outline,
-              color: accent,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              hasIssue
-                  ? 'Signaux de déclin détectés : ${declining.map((m) => m.label).join(', ')}.'
-                  : 'Aucun signal de déclin marqué détecté sur la période récente.',
-              style: TextStyle(
-                color: AppTheme.textPrimary,
-                height: 1.4,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

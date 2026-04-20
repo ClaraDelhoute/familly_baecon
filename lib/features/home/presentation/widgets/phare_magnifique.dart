@@ -127,14 +127,14 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
       return const Color(0xFFEF4444);
     }
     if (severity == 'medium') {
-      return const Color(0xFFF59E0B);
+      return const Color(0xFFEF4444);
     }
 
     switch (status) {
       case ActivityStatus.ok:
         return const Color(0xFF10B981);
       case ActivityStatus.warning:
-        return const Color(0xFFF59E0B);
+        return const Color(0xFFEF4444);
       case ActivityStatus.critical:
       default:
         return const Color(0xFFEF4444);

@@ -12,6 +12,7 @@ import 'package:familly_baecon/core/services/settings_service.dart';
 import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
+import 'package:familly_baecon/features/journal/data/models/routine_activity_model.dart';
 import 'package:familly_baecon/features/journal/data/datasources/journal_remote_datasource.dart';
 import 'package:familly_baecon/features/journal/data/models/mqtt_alert_model.dart';
 import 'package:familly_baecon/features/journal/data/models/notification_model.dart';
@@ -167,6 +168,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
           .listen((alert) {
             mqttAlerts = [alert, ...mqttAlerts].take(100).toList();
             print('[APP] mqtt alert received id=${alert.id} totalMqtt=${mqttAlerts.length}');
+            ref.read(backendSyncCounterProvider.notifier).state++;
             unawaited(load());
           });
     } catch (_) {
@@ -251,6 +253,11 @@ final liveAnomaliesProvider = StreamProvider<List<AnomalyHistoryModel>>((ref) {
   return controller.stream;
 });
 
+final liveRoutineProvider = FutureProvider<List<RoutineActivityModel>>((ref) async {
+  final datasource = ref.watch(_journalRemoteDataSourceProvider);
+  return datasource.fetchRoutine();
+});
+
 AlertItem _notificationToAlert(NotificationModel notification) {
   final lower = notification.message.toLowerCase();
   final anomalyType = _inferAnomalyTypeFromMessage(lower);
@@ -292,21 +299,30 @@ String _inferAnomalyTypeFromMessage(String lowerMessage) {
   }
   if (lowerMessage.contains('duration_long') ||
       lowerMessage.contains('durée longue') ||
+      lowerMessage.contains('anormalement longue') ||
       lowerMessage.contains('trop long')) {
     return 'duration_long';
   }
   if (lowerMessage.contains('duration_short') ||
       lowerMessage.contains('durée courte') ||
-      lowerMessage.contains('trop court')) {
+      lowerMessage.contains('anormalement courte') ||
+      lowerMessage.contains('trop court') ||
+      lowerMessage.contains('trop courte')) {
     return 'duration_short';
   }
-  if (lowerMessage.contains('freq_high') || lowerMessage.contains('fréquence élevée')) {
+  if (lowerMessage.contains('freq_high') ||
+      lowerMessage.contains('fréquence élevée') ||
+      lowerMessage.contains('trop fréquent')) {
     return 'freq_high';
   }
-  if (lowerMessage.contains('freq_low') || lowerMessage.contains('fréquence faible')) {
+  if (lowerMessage.contains('freq_low') ||
+      lowerMessage.contains('fréquence faible') ||
+      lowerMessage.contains('rare')) {
     return 'freq_low';
   }
-  if (lowerMessage.contains('timing') || lowerMessage.contains('horaire')) {
+  if (lowerMessage.contains('timing') ||
+      lowerMessage.contains('horaire') ||
+      lowerMessage.contains('inhabituel')) {
     return 'timing';
   }
   return 'timing';

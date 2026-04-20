@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
-import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
-import 'package:familly_baecon/features/journal/presentation/widgets/calendar_timeline.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
+import 'package:familly_baecon/features/journal/data/models/routine_activity_model.dart';
+import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/features/journal/presentation/widgets/calendar_timeline.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 
 class JournalPage extends ConsumerStatefulWidget {
@@ -23,22 +23,18 @@ class _JournalPageState extends ConsumerState<JournalPage> {
 
   @override
   Widget build(BuildContext context) {
-    final ref = this.ref;
     final observedAsync = ref.watch(liveObservedActivitiesProvider);
     final observed = observedAsync.when(
       data: (items) => items,
       loading: () => const <Activity>[],
-      error: (error, stackTrace) => const <Activity>[],
+      error: (_, __) => const <Activity>[],
     );
     final observedLocal = observed.map(_toLocalActivity).toList();
     final defaultDay = _defaultObservedDay(observedLocal);
     final selectedDay = _selectedDate ?? defaultDay;
-
+    final selectedDayLabel = _formatDateShort(selectedDay);
     final observedForDay = _filterActivitiesByDay(observedLocal, selectedDay);
-    final expectedTemplate = ref.watch(expectedActivitiesProvider);
-    final expected = _rebaseExpectedToDay(expectedTemplate, selectedDay);
     final titleDateFormatter = _formatFrenchDateLong(selectedDay);
-
     final titleCapitalized = titleDateFormatter.isEmpty
         ? ''
         : '${titleDateFormatter[0].toUpperCase()}${titleDateFormatter.substring(1)}';
@@ -67,7 +63,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
             },
           ),
           IconButton(
-            tooltip: 'Afficher la vue année',
+            tooltip: 'Afficher la vue annee',
             icon: const Icon(Icons.calendar_today, color: AppTheme.accentBlue),
             onPressed: () {
               setState(() {
@@ -78,7 +74,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
             },
           ),
           IconButton(
-            tooltip: 'Paramètres',
+            tooltip: 'Parametres',
             icon: const Icon(Icons.settings),
             onPressed: () {
               Navigator.push(
@@ -143,10 +139,10 @@ class _JournalPageState extends ConsumerState<JournalPage> {
               ),
             Container(
               color: AppTheme.darkBgLight.withValues(alpha: 0.45),
-              child: const TabBar(
+              child: TabBar(
                 tabs: [
-                  Tab(text: 'Journée en cours'),
-                  Tab(text: 'Journée type'),
+                  Tab(text: selectedDayLabel),
+                  const Tab(text: 'Journee type'),
                 ],
               ),
             ),
@@ -163,37 +159,12 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                       _sharedTimelineScrollOffset = offset;
                     },
                   ),
-                  Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        color: AppTheme.darkBgLight.withValues(alpha: 0.35),
-                        child: Text(
-                          'Routine théorique complète',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: CalendarTimeline(
-                          expectedActivities: expected,
-                          observedActivities: const <Activity>[],
-                          showObservedColumn: false,
-                          expectedColumnTitle: 'JOURNÉE TYPE',
-                          sharedVerticalOffset: _sharedTimelineScrollOffset,
-                          onVerticalOffsetChanged: (offset) {
-                            _sharedTimelineScrollOffset = offset;
-                          },
-                        ),
-                      ),
-                    ],
+                  _RoutineTab(
+                    selectedDay: selectedDay,
+                    sharedVerticalOffset: _sharedTimelineScrollOffset,
+                    onVerticalOffsetChanged: (offset) {
+                      _sharedTimelineScrollOffset = offset;
+                    },
                   ),
                 ],
               ),
@@ -240,21 +211,28 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     ];
     const months = [
       'janvier',
-      'février',
+      'fevrier',
       'mars',
       'avril',
       'mai',
       'juin',
       'juillet',
-      'août',
+      'aout',
       'septembre',
       'octobre',
       'novembre',
-      'décembre',
+      'decembre',
     ];
     final weekday = weekdays[date.weekday - 1];
     final month = months[date.month - 1];
     return '$weekday ${date.day} $month ${date.year}';
+  }
+
+  String _formatDateShort(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString().padLeft(4, '0');
+    return '$day/$month/$year';
   }
 
   Activity _toLocalActivity(Activity activity) {
@@ -262,30 +240,101 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     final endLocal = activity.endAt?.toLocal();
     return activity.copyWith(startAt: startLocal, endAt: endLocal);
   }
+}
 
-  List<Activity> _rebaseExpectedToDay(List<Activity> template, DateTime day) {
-    return template.map((activity) {
-      final start = DateTime(
-        day.year,
-        day.month,
-        day.day,
-        activity.startAt.hour,
-        activity.startAt.minute,
-        activity.startAt.second,
-      );
-      final end = activity.durationMin != null
-          ? start.add(Duration(minutes: activity.durationMin!))
-          : activity.endAt == null
-          ? null
-          : DateTime(
-              day.year,
-              day.month,
-              day.day,
-              activity.endAt!.hour,
-              activity.endAt!.minute,
-              activity.endAt!.second,
-            );
-      return activity.copyWith(startAt: start, endAt: end);
-    }).toList()..sort((a, b) => a.startAt.compareTo(b.startAt));
+class _RoutineTab extends ConsumerWidget {
+  final DateTime selectedDay;
+  final double? sharedVerticalOffset;
+  final ValueChanged<double>? onVerticalOffsetChanged;
+
+  const _RoutineTab({
+    required this.selectedDay,
+    this.sharedVerticalOffset,
+    this.onVerticalOffsetChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final routineAsync = ref.watch(liveRoutineProvider);
+
+    return routineAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: Text(
+          'Impossible de charger la routine.',
+          style: TextStyle(color: AppTheme.textSecondary),
+        ),
+      ),
+      data: (items) {
+        final routineItems = items
+            .where((r) => r.isActivityProfile && r.frequency > 0)
+            .toList()
+          ..sort((a, b) => (a.startMin ?? 0).compareTo(b.startMin ?? 0));
+
+        if (routineItems.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.schedule_rounded,
+                    size: 48,
+                    color: AppTheme.textSecondary.withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'La journee type sera construite automatiquement\npar le systeme a partir des donnees observees.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final expectedActivities = routineItems
+            .map((activity) => _toExpectedActivity(activity, selectedDay))
+            .toList();
+
+        return CalendarTimeline(
+          expectedActivities: expectedActivities,
+          observedActivities: const <Activity>[],
+          showObservedColumn: false,
+          expectedColumnTitle: 'JOURNEE TYPE',
+          sharedVerticalOffset: sharedVerticalOffset,
+          onVerticalOffsetChanged: onVerticalOffsetChanged,
+        );
+      },
+    );
+  }
+
+  Activity _toExpectedActivity(RoutineActivityModel activity, DateTime day) {
+    final startMinute = ((activity.startMin ?? 0).round().clamp(0, 1439)) as int;
+    final duration = ((activity.durationMin ?? 60).round().clamp(1, 1440)) as int;
+    final baseDay = DateTime(day.year, day.month, day.day);
+    final startAt = baseDay.add(Duration(minutes: startMinute));
+    final endAt = startAt.add(Duration(minutes: duration));
+
+    return Activity(
+      id: 'routine-${activity.sensorType}-${activity.room}-$startMinute',
+      deviceId: 'routine',
+      type: activity.room,
+      room: activity.room,
+      startAt: startAt,
+      endAt: endAt,
+      durationMin: duration,
+      confidence: activity.frequency,
+      metadata: <String, dynamic>{
+        'sensorType': activity.sensorType,
+        'sampleCount': activity.sampleCount,
+      },
+    );
   }
 }

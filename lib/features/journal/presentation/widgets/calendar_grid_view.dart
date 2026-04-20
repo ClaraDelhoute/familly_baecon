@@ -32,7 +32,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
     if (activity.type.toLowerCase().contains('ordinateur')) {
       return Color(0xFFBB86FC);
     }
-    return AppTheme.activityOrange;
+    return AppTheme.activityPurple;
   }
 
   String _getActivityLabel(Activity activity) {

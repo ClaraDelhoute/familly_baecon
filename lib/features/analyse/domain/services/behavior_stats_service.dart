@@ -6,6 +6,8 @@ class DailyBehaviorStats {
   final int mealsCount;
   final int otherActivitiesCount;
   final int totalActivities;
+  // Minute de la première activité dans la journée (0–1439), null si aucune
+  final int? firstActivityMinute;
 
   const DailyBehaviorStats({
     required this.day,
@@ -13,6 +15,7 @@ class DailyBehaviorStats {
     required this.mealsCount,
     required this.otherActivitiesCount,
     required this.totalActivities,
+    this.firstActivityMinute,
   });
 }
 
@@ -64,51 +67,19 @@ class BehaviorStatsService {
   }
 
   static DailyBehaviorStats summarizeLatestDay(List<Activity> activities) {
-    if (activities.isEmpty) {
-      final now = DateTime.now();
-      return DailyBehaviorStats(
-        day: DateTime(now.year, now.month, now.day),
-        sleepMinutes: 0,
-        mealsCount: 0,
-        otherActivitiesCount: 0,
-        totalActivities: 0,
-      );
-    }
-    final latestDay = activities
-        .map((a) => DateTime(a.startAt.year, a.startAt.month, a.startAt.day))
-        .reduce((a, b) => a.isAfter(b) ? a : b);
-    final sameDay = activities.where((a) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final todayActivities = activities.where((a) {
       final day = DateTime(a.startAt.year, a.startAt.month, a.startAt.day);
-      return day == latestDay;
+      return day == today;
     }).toList();
-    return _fromDayActivities(latestDay, sameDay);
+    // Si aucune activité aujourd'hui, on renvoie des zéros plutôt que le dernier jour connu
+    return _fromDayActivities(today, todayActivities);
   }
 
   static List<DeclineMetric> buildDeclineMetrics(List<DailyBehaviorStats> stats) {
     if (stats.isEmpty) {
-      return const [
-        DeclineMetric(
-          label: 'Sommeil',
-          recentAverage: 0,
-          previousAverage: 0,
-          unit: 'h',
-          declineThreshold: 0.9,
-        ),
-        DeclineMetric(
-          label: 'Repas',
-          recentAverage: 0,
-          previousAverage: 0,
-          unit: 'repas',
-          declineThreshold: 0.85,
-        ),
-        DeclineMetric(
-          label: 'Autres activités',
-          recentAverage: 0,
-          previousAverage: 0,
-          unit: 'act.',
-          declineThreshold: 0.85,
-        ),
-      ];
+      return const [];
     }
 
     final split = stats.length >= 14 ? 7 : (stats.length / 2).floor().clamp(1, stats.length);
@@ -163,34 +134,26 @@ class BehaviorStatsService {
       }
     }
 
+    final firstMinute = activities.isEmpty
+        ? null
+        : activities
+            .map((a) => a.startAt.hour * 60 + a.startAt.minute)
+            .reduce((a, b) => a < b ? a : b);
+
     return DailyBehaviorStats(
       day: day,
       sleepMinutes: sleepMinutes,
       mealsCount: mealsCount,
       otherActivitiesCount: otherCount,
       totalActivities: activities.length,
+      firstActivityMinute: firstMinute,
     );
   }
 
-  static bool _isSleep(Activity activity) {
-    final type = activity.type.toLowerCase();
-    final room = (activity.room ?? '').toLowerCase();
-    return type.contains('sleep') ||
-        type.contains('sommeil') ||
-        room.contains('chambre') ||
-        room.contains('lit');
-  }
+  static bool _isSleep(Activity activity) => activity.type == 'sleep';
 
-  static bool _isMeal(Activity activity) {
-    final type = activity.type.toLowerCase();
-    final room = (activity.room ?? '').toLowerCase();
-    return type.contains('petit_dejeuner') ||
-        type.contains('petit-déjeuner') ||
-        type.contains('dejeuner') ||
-        type.contains('déjeuner') ||
-        type.contains('souper') ||
-        type.contains('repas') ||
-        room.contains('cuisine') ||
-        room.contains('salle à manger');
-  }
+  static bool _isMeal(Activity activity) =>
+      activity.type == 'petit-déjeuner' ||
+      activity.type == 'déjeuner' ||
+      activity.type == 'souper';
 }
