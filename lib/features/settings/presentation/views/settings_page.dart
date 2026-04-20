@@ -2,14 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/providers/accessibility_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/services/settings_service.dart';
+import 'package:familly_baecon/core/models/absence_period.dart';
 import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/features/profile/presentation/widgets/profile_avatar_widget.dart';
 
-class SettingsPage extends ConsumerWidget {
+class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends ConsumerState<SettingsPage> {
+  final _settings = SettingsService();
+  AbsencePeriod _absence = AbsencePeriod();
+  bool _isAbsenceActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAbsence();
+  }
+
+  Future<void> _loadAbsence() async {
+    final p = await _settings.loadAbsencePeriod();
+    if (mounted) {
+      setState(() {
+        _absence = p;
+        _isAbsenceActive = p.isDefined;
+      });
+    }
+  }
+
+  Future<void> _onToggleAbsence(bool value) async {
+    if (!value) {
+      await _settings.saveAbsencePeriod(AbsencePeriod());
+      if (mounted) {
+        setState(() {
+          _absence = AbsencePeriod();
+          _isAbsenceActive = false;
+        });
+      }
+      return;
+    }
+
+    final now = DateTime.now();
+    final start = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 365 * 2)),
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de début d\'absence',
+    );
+    if (start == null) return;
+
+    final end = await showDatePicker(
+      context: context,
+      initialDate: start.add(const Duration(days: 1)),
+      firstDate: start,
+      lastDate: DateTime(now.year + 5),
+      helpText: 'Date de fin d\'absence',
+    );
+    if (end == null) return;
+
+    final period = AbsencePeriod(start: start, end: end);
+    await _settings.saveAbsencePeriod(period);
+    if (mounted) {
+      setState(() {
+        _absence = period;
+        _isAbsenceActive = true;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final serverConnected =
         ref.watch(backendApiConnectedProvider) ||
         ref.watch(backendMqttConnectedProvider);
@@ -34,6 +103,47 @@ class SettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // === PHOTO DE PROFIL ===
+          Text('Photo de profil', style: sectionTitleStyle),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const ProfileAvatarWidget(size: 70, initialName: 'R'),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Modifier la photo',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Appuyez sur la photo pour la changer',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // === SERVEUR ===
+          Text('Connexion', style: sectionTitleStyle),
+          const SizedBox(height: 8),
           Card(
             child: ListTile(
               leading: Icon(
@@ -49,6 +159,65 @@ class SettingsPage extends ConsumerWidget {
               subtitle: Text(
                 'Mise à jour: ${lastSyncAt == null ? '--:--:--' : _formatHms(lastSyncAt)}',
               ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Text('Plage d\'absence', style: sectionTitleStyle),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: Icon(Icons.event_busy, size: iconSize, color: AppTheme.activityOrange),
+                  title: const Text('Mode Absence'),
+                  subtitle: const Text('Désactiver le suivi et les notifications'),
+                  value: _isAbsenceActive,
+                  onChanged: _onToggleAbsence,
+                ),
+                if (_isAbsenceActive && _absence.start != null && _absence.end != null) ...[
+                  const Divider(height: 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Début',
+                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_absence.start!.day.toString().padLeft(2, '0')}/${_absence.start!.month.toString().padLeft(2, '0')}/${_absence.start!.year}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(width: 1, height: 40, color: Colors.grey.shade300),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Fin',
+                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '${_absence.end!.day.toString().padLeft(2, '0')}/${_absence.end!.month.toString().padLeft(2, '0')}/${_absence.end!.year}',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 10),

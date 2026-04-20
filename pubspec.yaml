@@ -42,8 +42,8 @@ dependencies:
   dio: ^5.9.0
   shared_preferences: ^2.5.3
   mqtt_client: ^10.11.1
-
-dev_dependencies:
+  image_picker: ^1.1.2
+  path_provider: ^2.1.4
   flutter_test:
     sdk: flutter
 

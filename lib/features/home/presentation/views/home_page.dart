@@ -1,11 +1,13 @@
 // filepath: c:\Users\clara\StudioProjects\familly_baecon\lib\features\home\presentation\views\home_page.dart
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/providers/profile_image_provider.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
@@ -358,6 +360,7 @@ class HomePage extends ConsumerWidget {
                 );
 
           final avatarSize = isWide ? 96.0 : 72.0;
+          final profileImagePath = ref.watch(profileImagePathProvider);
           final avatar = Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
@@ -373,10 +376,15 @@ class HomePage extends ConsumerWidget {
               child: SizedBox(
                 width: avatarSize,
                 height: avatarSize,
-                child: Image.asset(
-                  'assets/elderly_avatar.jpg',
-                  fit: BoxFit.cover,
-                ),
+                child: profileImagePath != null && File(profileImagePath).existsSync()
+                    ? Image.file(
+                        File(profileImagePath),
+                        fit: BoxFit.cover,
+                      )
+                    : Image.asset(
+                        'assets/elderly_avatar.jpg',
+                        fit: BoxFit.cover,
+                      ),
               ),
             ),
           );

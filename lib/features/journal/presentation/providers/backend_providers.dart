@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/config/app_config.dart';
 import 'package:familly_baecon/core/mqtt/mqtt_service.dart';
 import 'package:familly_baecon/core/network/dio_provider.dart';
+import 'package:familly_baecon/core/services/settings_service.dart';
 import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
@@ -34,17 +35,30 @@ final _mqttServiceProvider = Provider((ref) {
   );
 });
 
+final _settingsServiceProvider = Provider((ref) => SettingsService());
+
 final forceBackendSyncProvider = Provider<Future<void> Function()>((ref) {
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
+  final settings = ref.watch(_settingsServiceProvider);
+
   return () async {
+    final inAbsence = await settings.isInAbsence();
+    if (inAbsence) {
+      print('[APP] skipping backend sync due to active absence period');
+      return;
+    }
+
     try {
       await datasource.fetchActivities();
-      await datasource.fetchNotifications();
       ref.read(backendApiConnectedProvider.notifier).state = true;
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
-      ref.read(backendSyncCounterProvider.notifier).state++;
-    } catch (_) {
+    } catch (error) {
       ref.read(backendApiConnectedProvider.notifier).state = false;
+      if (error is DioException) {
+        print('[APP] backend sync failed (network error): ${error.message}');
+      } else {
+        print('[APP] backend sync error=$error');
+      }
       rethrow;
     }
   };
@@ -54,17 +68,24 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
   ref.watch(backendSyncCounterProvider);
   final controller = StreamController<List<Activity>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
+  final settings = ref.read(_settingsServiceProvider);
   Timer? timer;
 
   Future<void> load() async {
     try {
+      final inAbsence = await settings.isInAbsence();
+      if (inAbsence) {
+        print('[APP] skipping activities fetch due to active absence period');
+        controller.add(const <Activity>[]);
+        return;
+      }
+
       final now = DateTime.now();
       final activities = await datasource.fetchActivities();
       final mapped = activities
           .map((activity) => activity.toDomain(fallbackDate: now))
           .toList()
         ..sort((a, b) => a.startAt.compareTo(b.startAt));
-      print('[APP] observed activities pushed=${mapped.length}');
       ref.read(backendApiConnectedProvider.notifier).state = true;
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
       controller.add(mapped);
@@ -96,12 +117,20 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
   final controller = StreamController<List<AlertItem>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   final mqttService = ref.watch(_mqttServiceProvider);
+  final settings = ref.read(_settingsServiceProvider);
   var mqttAlerts = <AlertItem>[];
   Timer? timer;
   StreamSubscription<AlertItem>? mqttSubscription;
 
   Future<void> load() async {
     try {
+      final inAbsence = await settings.isInAbsence();
+      if (inAbsence) {
+        print('[APP] skipping notifications fetch due to active absence period');
+        controller.add(_deduplicateAlerts(mqttAlerts));
+        return;
+      }
+
       final notifications = await datasource.fetchNotifications();
       final mapped = [
         ...notifications.map(_notificationToAlert),
@@ -115,7 +144,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       controller.add(deduplicated);
     } catch (error, stack) {
       if (error is DioException) {
-        print('[APP] alerts fallback mqtt-only=${mqttAlerts.length} (network error): ${error.message}');
+        print('[APP] alerts fallback empty (network error): ${error.message}');
         ref.read(backendApiConnectedProvider.notifier).state = false;
         controller.add(_deduplicateAlerts(mqttAlerts));
       } else {

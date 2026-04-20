@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/features/profile/presentation/widgets/profile_avatar_widget.dart';
+import 'package:familly_baecon/core/services/settings_service.dart';
+import 'package:familly_baecon/core/models/absence_period.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -18,6 +21,64 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Sélection du mode thème
   String selectedTheme = 'auto'; // light, dark, auto
+  AbsencePeriod _absence = AbsencePeriod();
+  final _settings = SettingsService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAbsence();
+  }
+
+  Future<void> _loadAbsence() async {
+    final p = await _settings.loadAbsencePeriod();
+    if (mounted) {
+      setState(() {
+        _absence = p;
+        isOnVacation = p.isDefined;
+      });
+    }
+  }
+
+  Future<void> _onToggleAbsence(bool value) async {
+    if (!value) {
+      // Clear absence
+      await _settings.saveAbsencePeriod(AbsencePeriod());
+      if (mounted) {
+        setState(() {
+          _absence = AbsencePeriod();
+          isOnVacation = false;
+        });
+      }
+      return;
+    }
+
+    // Pick start and end dates
+    final now = DateTime.now();
+    final start = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 365 * 2)),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (start == null) return;
+    final end = await showDatePicker(
+      context: context,
+      initialDate: start.add(const Duration(days: 1)),
+      firstDate: start,
+      lastDate: DateTime(now.year + 5),
+    );
+    if (end == null) return;
+
+    final period = AbsencePeriod(start: start, end: end);
+    await _settings.saveAbsencePeriod(period);
+    if (mounted) {
+      setState(() {
+        _absence = period;
+        isOnVacation = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,60 +86,32 @@ class _ProfilePageState extends State<ProfilePage> {
     final isDarkMode = selectedTheme == 'dark' ||
         (selectedTheme == 'auto' && MediaQuery.of(context).platformBrightness == Brightness.dark);
 
-    // Couleurs adaptées au thème
-    final bgColor = isDarkMode ? AppTheme.darkBg : const Color(0xFFF5F5F5);
-
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        title: const Text('Profil & Paramètres'),
-        elevation: 0,
-        backgroundColor: bgColor,
-      ),
+      backgroundColor: isDarkMode ? AppTheme.darkBg : const Color(0xFFF5F5F5),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // === HEADER PROFIL - FULL WIDTH ===
+            // === EN-TÊTE PROFIL ===
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppTheme.accentBlue, AppTheme.accentCyan],
+                  colors: [
+                    AppTheme.accentBlue,
+                    AppTheme.accentBlue.withValues(alpha: 0.8),
+                  ],
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(32),
+                  bottomRight: Radius.circular(32),
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(24, 40, 24, 48),
+              padding: const EdgeInsets.fromLTRB(20, 60, 20, 32),
               child: Column(
                 children: [
-                  // Avatar
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                      gradient: LinearGradient(
-                        colors: [Colors.blue.shade400, Colors.blue.shade600],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'R',
-                        style: TextStyle(
-                          fontSize: 48,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
+                  const ProfileAvatarWidget(size: 90, initialName: 'R'),
                   const SizedBox(height: 20),
                   // Nom
                   const Text(
@@ -126,11 +159,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     title: 'Mode Absence',
                     subtitle: 'Désactiver le suivi (vacances, hôpital, voyage...)',
                     value: isOnVacation,
-                    onChanged: (value) {
-                      setState(() => isOnVacation = value);
-                    },
+                    onChanged: _onToggleAbsence,
                     isDarkMode: isDarkMode,
                   ),
+                  if (isOnVacation) ...[
+                    const SizedBox(height: 12),
+                    _buildAbsencePeriodCard(isDarkMode),
+                  ],
                   const SizedBox(height: 12),
                   _buildSettingCard(
                     icon: Icons.location_on,
@@ -160,8 +195,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 12),
                   _buildSettingCard(
                     icon: Icons.warning,
-                    title: 'Alertes anomalies',
-                    subtitle: 'Alerter en cas d\'activité inhabituelle',
+                    title: 'Alertes critiques',
+                    subtitle: 'Recevoir les alertes de sécurité',
                     value: alertsEnabled,
                     onChanged: (value) {
                       setState(() => alertsEnabled = value);
@@ -313,6 +348,101 @@ class _ProfilePageState extends State<ProfilePage> {
               value: value,
               onChanged: onChanged,
               activeThumbColor: AppTheme.accentBlue,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAbsencePeriodCard(bool isDarkMode) {
+    final start = _absence.start != null
+        ? '${_absence.start!.day.toString().padLeft(2, '0')}/${_absence.start!.month.toString().padLeft(2, '0')}/${_absence.start!.year}'
+        : 'Non défini';
+    final end = _absence.end != null
+        ? '${_absence.end!.day.toString().padLeft(2, '0')}/${_absence.end!.month.toString().padLeft(2, '0')}/${_absence.end!.year}'
+        : 'Non défini';
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: isDarkMode ? AppTheme.darkBgLight : Colors.white,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.date_range, color: AppTheme.activityOrange, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Période d\'absence',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDarkMode ? AppTheme.textPrimary : const Color(0xFF1a1a1a),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Début',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDarkMode ? AppTheme.textSecondary : const Color(0xFF666666),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        start,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? AppTheme.textPrimary : const Color(0xFF1a1a1a),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 1,
+                  height: 30,
+                  color: isDarkMode ? AppTheme.textSecondary.withValues(alpha: 0.3) : const Color(0xFFe0e0e0),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Fin',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDarkMode ? AppTheme.textSecondary : const Color(0xFF666666),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        end,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDarkMode ? AppTheme.textPrimary : const Color(0xFF1a1a1a),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -518,9 +648,11 @@ class _ProfilePageState extends State<ProfilePage> {
             child: const Text('Annuler'),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              await _settings.saveAbsencePeriod(AbsencePeriod());
               setState(() {
                 isOnVacation = false;
+                _absence = AbsencePeriod();
                 notificationsEnabled = true;
                 locationTrackingEnabled = true;
                 alertsEnabled = true;
@@ -541,8 +673,8 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Déconnexion?'),
-        content: const Text('Vous serez déconnecté de l\'application.'),
+        title: const Text('Déconnexion'),
+        content: const Text('Êtes-vous sûr de vouloir vous déconnecter?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -551,9 +683,9 @@ class _ProfilePageState extends State<ProfilePage> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Déconnexion en cours...')));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Déconnexion...')));
             },
-            child: const Text('Déconnexion'),
+            child: const Text('Déconnecter', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
