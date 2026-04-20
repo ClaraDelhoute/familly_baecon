@@ -16,7 +16,6 @@ class AnomalyDetailPage extends ConsumerWidget {
     final accent = isHigh ? AppTheme.activityRed : AppTheme.accentBlue;
     final activityTime = _toFranceTime(anomaly.simulatedAt);
     final notifTime = _toFranceTime(anomaly.lastSeenAt);
-    final firstSeen = _toFranceTime(anomaly.firstDetectedAt);
     final name = ref.watch(watchedPersonNameProvider);
     final title = _prettyTitle(anomaly, name);
 
@@ -106,32 +105,6 @@ class AnomalyDetailPage extends ConsumerWidget {
               ),
             ];
           })(),
-          if (anomaly.seenCount > 1) ...[
-            const SizedBox(height: 18),
-            _SectionTitle('Historique des détections'),
-            const SizedBox(height: 8),
-            _InfoCard(
-              children: [
-                _InfoRow(
-                  icon: Icons.repeat_rounded,
-                  label: 'Cette anomalie a été observée ${anomaly.seenCount} fois au total.',
-                  accent: accent,
-                ),
-                const _Separator(),
-                _InfoRow(
-                  icon: Icons.first_page_rounded,
-                  label: 'Première détection : ${_relativeDay(firstSeen)}',
-                  accent: accent,
-                ),
-                const _Separator(),
-                _InfoRow(
-                  icon: Icons.update_rounded,
-                  label: 'Détection la plus récente : ${_relativeDay(notifTime)}',
-                  accent: accent,
-                ),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -325,23 +298,23 @@ class _Separator extends StatelessWidget {
 
 IconData _iconForActivity(String activityKey) {
   return switch (activityKey) {
-    'sleep'           => Icons.bedtime_rounded,
-    'petit-déjeuner'  => Icons.free_breakfast_rounded,
-    'déjeuner'        => Icons.lunch_dining_rounded,
-    'souper'          => Icons.dinner_dining_rounded,
-    'outside'         => Icons.directions_walk_rounded,
-    _                 => Icons.home_rounded,
+    'sleep' => Icons.bedtime_rounded,
+    'petit-déjeuner' => Icons.free_breakfast_rounded,
+    'déjeuner' => Icons.lunch_dining_rounded,
+    'souper' => Icons.ramen_dining_rounded,
+    'outside' => Icons.directions_walk_rounded,
+    _ => Icons.home_rounded,
   };
 }
 
 String _prettyActivityLabel(String activityKey) {
   return switch (activityKey) {
-    'sleep'          => 'le sommeil',
+    'sleep' => 'le sommeil',
     'petit-déjeuner' => 'le petit-déjeuner',
-    'déjeuner'       => 'le déjeuner',
-    'souper'         => 'le souper',
-    'outside'        => 'la sortie',
-    _                => "l'activité",
+    'déjeuner' => 'le déjeuner',
+    'souper' => 'le souper',
+    'outside' => 'la sortie',
+    _ => "l'activité",
   };
 }
 
@@ -352,43 +325,47 @@ String _prettyTitle(AnomalyHistoryModel anomaly, String personName) {
   if (who != null) {
     return switch (anomaly.activityKey) {
       'sleep' => switch (type) {
-        'missing'        => '$who n\'a pas dormi cette nuit.',
-        'timing'         => '$who s\'est couché(e) à un horaire inhabituel.',
+        'missing' => '$who n\'a pas dormi cette nuit.',
+        'timing' => '$who s\'est couché(e) à un horaire inhabituel.',
         'duration_short' => '$who a dormi moins longtemps que d\'habitude.',
-        'duration_long'  => '$who a dormi plus longtemps que d\'habitude.',
-        'freq_high'      => '$who s\'est recouché(e) plus souvent que d\'habitude.',
-        'freq_low'       => '$who a peu dormi aujourd\'hui.',
-        _                => '$who a eu un sommeil inhabituel.',
+        'duration_long' => '$who a dormi plus longtemps que d\'habitude.',
+        'freq_high' => '$who s\'est recouché(e) plus souvent que d\'habitude.',
+        'freq_low' => '$who a peu dormi aujourd\'hui.',
+        _ => '$who a eu un sommeil inhabituel.',
       },
       'petit-déjeuner' => switch (type) {
-        'missing'        => '$who n\'a pas pris son petit-déjeuner ce matin.',
-        'timing'         => '$who a petit-déjeuné à un horaire inhabituel.',
-        'duration_short' => '$who a pris un petit-déjeuner plus rapide que d\'habitude.',
-        'duration_long'  => '$who a pris un petit-déjeuner plus long que d\'habitude.',
-        _                => '$who a eu un petit-déjeuner inhabituel.',
+        'missing' => '$who n\'a pas pris son petit-déjeuner ce matin.',
+        'timing' => '$who a petit-déjeuné à un horaire inhabituel.',
+        'duration_short' =>
+          '$who a pris un petit-déjeuner plus rapide que d\'habitude.',
+        'duration_long' =>
+          '$who a pris un petit-déjeuner plus long que d\'habitude.',
+        _ => '$who a eu un petit-déjeuner inhabituel.',
       },
       'déjeuner' => switch (type) {
-        'missing'        => '$who n\'a pas déjeuné aujourd\'hui.',
-        'timing'         => '$who a déjeuné à un horaire inhabituel.',
+        'missing' => '$who n\'a pas déjeuné aujourd\'hui.',
+        'timing' => '$who a déjeuné à un horaire inhabituel.',
         'duration_short' => '$who a déjeuné plus rapidement que d\'habitude.',
-        'duration_long'  => '$who a déjeuné plus longuement que d\'habitude.',
-        _                => '$who a eu un déjeuner inhabituel.',
+        'duration_long' => '$who a déjeuné plus longuement que d\'habitude.',
+        _ => '$who a eu un déjeuner inhabituel.',
       },
       'souper' => switch (type) {
-        'missing'        => '$who n\'a pas soupé ce soir.',
-        'timing'         => '$who a soupé à un horaire inhabituel.',
+        'missing' => '$who n\'a pas soupé ce soir.',
+        'timing' => '$who a soupé à un horaire inhabituel.',
         'duration_short' => '$who a soupé plus rapidement que d\'habitude.',
-        'duration_long'  => '$who a soupé plus longuement que d\'habitude.',
-        _                => '$who a eu un souper inhabituel.',
+        'duration_long' => '$who a soupé plus longuement que d\'habitude.',
+        _ => '$who a eu un souper inhabituel.',
       },
       'outside' => switch (type) {
-        'missing'        => '$who n\'est pas sorti(e) aujourd\'hui.',
-        'timing'         => '$who est sorti(e) à un horaire inhabituel.',
-        'duration_short' => '$who est resté(e) sorti(e) moins longtemps que d\'habitude.',
-        'duration_long'  => '$who est resté(e) sorti(e) plus longtemps que d\'habitude.',
-        'freq_high'      => '$who est sorti(e) plus souvent que d\'habitude.',
-        'freq_low'       => '$who sort moins souvent que d\'habitude.',
-        _                => '$who a eu une sortie inhabituelle.',
+        'missing' => '$who n\'est pas sorti(e) aujourd\'hui.',
+        'timing' => '$who est sorti(e) à un horaire inhabituel.',
+        'duration_short' =>
+          '$who est resté(e) sorti(e) moins longtemps que d\'habitude.',
+        'duration_long' =>
+          '$who est resté(e) sorti(e) plus longtemps que d\'habitude.',
+        'freq_high' => '$who est sorti(e) plus souvent que d\'habitude.',
+        'freq_low' => '$who sort moins souvent que d\'habitude.',
+        _ => '$who a eu une sortie inhabituelle.',
       },
       _ => 'Comportement inhabituel détecté pour $who.',
     };
@@ -397,13 +374,13 @@ String _prettyTitle(AnomalyHistoryModel anomaly, String personName) {
   final label = _prettyActivityLabel(anomaly.activityKey);
   final cap = '${label[0].toUpperCase()}${label.substring(1)}';
   return switch (type) {
-    'missing'        => '$cap absent aujourd\'hui.',
-    'timing'         => '$cap à un horaire inhabituel.',
+    'missing' => '$cap absent aujourd\'hui.',
+    'timing' => '$cap à un horaire inhabituel.',
     'duration_short' => '$cap plus court que d\'habitude.',
-    'duration_long'  => '$cap plus long que d\'habitude.',
-    'freq_high'      => '$cap plus fréquent que d\'habitude.',
-    'freq_low'       => '$cap moins fréquent que d\'habitude.',
-    _                => '$cap : comportement inhabituel.',
+    'duration_long' => '$cap plus long que d\'habitude.',
+    'freq_high' => '$cap plus fréquent que d\'habitude.',
+    'freq_low' => '$cap moins fréquent que d\'habitude.',
+    _ => '$cap : comportement inhabituel.',
   };
 }
 
@@ -425,10 +402,14 @@ List<String> _extractMetrics(String rawMessage) {
       final sign = pct >= 0 ? '+' : '';
       result.add('$sign$pct % par rapport à la moyenne');
     }
-    result.add('Ratio mesuré : ${ratioVs.group(1)} (valeur normale : ${ratioVs.group(2)})');
+    result.add(
+      'Ratio mesuré : ${ratioVs.group(1)} (valeur normale : ${ratioVs.group(2)})',
+    );
   } else {
-    final ratio =
-        RegExp(r'ratio\s*[:=]\s*([\d.]+)', caseSensitive: false).firstMatch(source);
+    final ratio = RegExp(
+      r'ratio\s*[:=]\s*([\d.]+)',
+      caseSensitive: false,
+    ).firstMatch(source);
     if (ratio != null) {
       result.add('Ratio mesuré : ${ratio.group(1)}×');
     }
@@ -446,8 +427,10 @@ List<String> _extractMetrics(String rawMessage) {
     }
   }
 
-  final score =
-      RegExp(r'score\s*[:=]\s*([\d.]+)', caseSensitive: false).firstMatch(source);
+  final score = RegExp(
+    r'score\s*[:=]\s*([\d.]+)',
+    caseSensitive: false,
+  ).firstMatch(source);
   if (score != null) {
     result.add('Score d\'écart : ${score.group(1)}');
   }
@@ -458,24 +441,25 @@ List<String> _extractMetrics(String rawMessage) {
 String _explanationByType(String type) {
   return switch (type.toLowerCase()) {
     'missing' =>
-      "Cette activité fait normalement partie de la routine quotidienne, "
-          "mais elle n'a pas été détectée aujourd'hui.",
+      'Cette activité fait normalement partie de la routine quotidienne, '
+          'mais elle n\'a pas été détectée aujourd\'hui.',
     'timing' =>
-      "L'activité s'est déroulée à un horaire inhabituel par rapport "
-          "aux jours précédents.",
+      'L\'activité s\'est déroulée à un horaire inhabituel par rapport '
+          'aux jours précédents.',
     'duration_short' =>
-      "L'activité a duré nettement moins longtemps que ce que la routine "
-          "habituelle laisse attendre.",
+      'L\'activité a duré nettement moins longtemps que ce que la routine '
+          'habituelle laisse attendre.',
     'duration_long' =>
-      "L'activité a duré nettement plus longtemps que ce que la routine "
-          "habituelle laisse attendre.",
+      'L\'activité a duré nettement plus longtemps que ce que la routine '
+          'habituelle laisse attendre.',
     'freq_high' =>
-      "Cette activité est revenue plus souvent qu'à l'ordinaire au cours "
-          "de la journée.",
+      'Cette activité est revenue plus souvent qu\'à l\'ordinaire au cours '
+          'de la journée.',
     'freq_low' =>
-      "Cette activité a eu lieu moins souvent que d'habitude. "
-          "Son absence partielle a déclenché cette alerte.",
-    _ => "Un écart significatif par rapport à la routine habituelle a été détecté.",
+      'Cette activité a eu lieu moins souvent que d\'habitude. '
+          'Son absence partielle a déclenché cette alerte.',
+    _ =>
+      'Un écart significatif par rapport à la routine habituelle a été détecté.',
   };
 }
 

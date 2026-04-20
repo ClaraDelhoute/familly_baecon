@@ -358,27 +358,6 @@ class _AnomalyCard extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (anomaly.seenCount > 1) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'Vue ${anomaly.seenCount} fois',
-                              style: TextStyle(
-                                color: accent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ],
@@ -403,7 +382,7 @@ IconData _iconForActivity(String activityKey) {
     'sleep'          => Icons.bedtime_rounded,
     'petit-déjeuner' => Icons.free_breakfast_rounded,
     'déjeuner'       => Icons.lunch_dining_rounded,
-    'souper'         => Icons.dinner_dining_rounded,
+    'souper'         => Icons.ramen_dining_rounded,
     'outside'        => Icons.directions_walk_rounded,
     _                => Icons.home_rounded,
   };
