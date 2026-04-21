@@ -105,8 +105,8 @@ class PlanPage extends ConsumerWidget {
               spacing: 16,
               runSpacing: 8,
               children: [
-                _legend('🔴', 'Capteur actif'),
-                _legend('⚪', 'Capteur éteint'),
+                _legend(const Color(0xFFDC2626), 'Dernier capteur déclenché'),
+                _legend(const Color(0xFF4B5563), 'Capteur inactif'),
               ],
             ),
           ],
@@ -120,11 +120,18 @@ class PlanPage extends ConsumerWidget {
     return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _legend(String icon, String label) {
+  Widget _legend(Color color, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 14)),
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
         const SizedBox(width: 6),
         Text(
           label,

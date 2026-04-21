@@ -1,7 +1,5 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
@@ -17,7 +15,6 @@ class AnalysePage extends ConsumerWidget {
         ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
     final anomalies =
         ref.watch(liveAnomaliesProvider).valueOrNull ?? const [];
-    final name = ref.watch(watchedPersonNameProvider);
 
     final dailyStats = BehaviorStatsService.buildDailyStats(observed, maxDays: 14);
 
@@ -39,13 +36,6 @@ class AnalysePage extends ConsumerWidget {
         : weekStats.fold(0, (s, d) => s + d.sleepMinutes) /
             weekStats.length /
             60;
-
-    // Routine score : % de jours avec ≥2 repas et ≥4h de sommeil
-    final goodDays = weekStats
-        .where((d) => d.mealsCount >= 2 && d.sleepMinutes >= 240)
-        .length;
-    final routineScore =
-        weekStats.isEmpty ? 0.0 : goodDays / weekStats.length;
 
     // Nuits courtes : sommeil < 5h
     final disturbedNights =
@@ -92,8 +82,6 @@ class AnalysePage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _RoutineGauge(score: routineScore, name: name),
-            const SizedBox(height: 20),
             _SectionLabel('Cette semaine'),
             const SizedBox(height: 12),
             Row(
@@ -199,150 +187,6 @@ class _SectionLabel extends StatelessWidget {
       ),
     );
   }
-}
-
-// ── Jauge circulaire ────────────────────────────────────────────────────────
-
-class _RoutineGauge extends StatelessWidget {
-  final double score; // 0.0 → 1.0
-  final String name;
-
-  const _RoutineGauge({required this.score, required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = (score * 100).round();
-    final Color accent = pct >= 75
-        ? AppTheme.activityGreen
-        : pct >= 50
-            ? AppTheme.accentBlue
-            : AppTheme.activityRed;
-
-    final String label = pct >= 75
-        ? 'Bonne semaine'
-        : pct >= 50
-            ? 'Semaine correcte'
-            : 'Semaine difficile';
-
-    final String sub = pct >= 75
-        ? 'La routine de $name est bien respectée.'
-        : pct >= 50
-            ? 'Quelques écarts dans la routine de $name.'
-            : 'La routine de $name est perturbée cette semaine.';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [accent.withValues(alpha: 0.85), accent.withValues(alpha: 0.6)],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: accent.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 110,
-            height: 110,
-            child: CustomPaint(
-              painter: _GaugePainter(score: score, color: Colors.white),
-              child: Center(
-                child: Text(
-                  '$pct%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    height: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  sub,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.85),
-                    fontSize: 14,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GaugePainter extends CustomPainter {
-  final double score;
-  final Color color;
-
-  const _GaugePainter({required this.score, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.shortestSide / 2) - 8;
-    const strokeWidth = 8.0;
-    const startAngle = -math.pi * 0.75;
-    const sweepTotal = math.pi * 1.5;
-
-    final trackPaint = Paint()
-      ..color = color.withValues(alpha: 0.25)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    final fillPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepTotal,
-      false,
-      trackPaint,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepTotal * score.clamp(0.0, 1.0),
-      false,
-      fillPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_GaugePainter old) => old.score != score;
 }
 
 // ── Tuile stat ───────────────────────────────────────────────────────────────

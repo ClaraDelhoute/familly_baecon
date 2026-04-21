@@ -1167,7 +1167,7 @@ class _ActivityCard extends StatelessWidget {
                     children: [
                       Text(
                         activity.room ?? activity.type,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
                           color: AppTheme.textPrimary,

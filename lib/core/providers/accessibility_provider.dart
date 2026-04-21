@@ -13,7 +13,6 @@ class AccessibilitySettingsNotifier
         const AccessibilitySettings(
           textScaleFactor: 1.0,
           iconScaleFactor: 1.0,
-          highContrast: false,
         ),
       ) {
     _load();
@@ -33,13 +32,8 @@ class AccessibilitySettingsNotifier
   }
 
   Future<void> setIconScaleFactor(double value) async {
-    final clamped = value.clamp(0.8, 1.8);
+    final clamped = value.clamp(0.8, 1.3);
     state = state.copyWith(iconScaleFactor: clamped);
-    await _service.save(state);
-  }
-
-  Future<void> setHighContrast(bool value) async {
-    state = state.copyWith(highContrast: value);
     await _service.save(state);
   }
 }

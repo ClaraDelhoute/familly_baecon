@@ -4,7 +4,6 @@ import 'package:familly_baecon/core/models/accessibility_settings.dart';
 class AccessibilityService {
   static const String _textScaleKey = 'accessibility_text_scale_factor';
   static const String _iconScaleKey = 'accessibility_icon_scale_factor';
-  static const String _highContrastKey = 'accessibility_high_contrast';
   static const String _textScaleMigrationDoneKey =
       'accessibility_text_scale_migrated_v2';
   static const String _iconScaleMigrationDoneKey =
@@ -27,18 +26,16 @@ class AccessibilityService {
     final iconMigrationDone =
         prefs.getBool(_iconScaleMigrationDoneKey) ?? false;
     if (!iconMigrationDone && hasStoredIconScale) {
-      iconScale = (iconScale / 1.2).clamp(0.8, 1.8);
+      iconScale = (iconScale / 1.2).clamp(0.8, 1.3);
       await prefs.setDouble(_iconScaleKey, iconScale);
     }
     if (!iconMigrationDone) {
       await prefs.setBool(_iconScaleMigrationDoneKey, true);
     }
-    final highContrast = prefs.getBool(_highContrastKey) ?? false;
 
     return AccessibilitySettings(
       textScaleFactor: textScale.clamp(0.8, 1.6),
-      iconScaleFactor: iconScale.clamp(0.8, 1.8),
-      highContrast: highContrast,
+      iconScaleFactor: iconScale.clamp(0.8, 1.3),
     );
   }
 
@@ -46,6 +43,5 @@ class AccessibilityService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_textScaleKey, settings.textScaleFactor);
     await prefs.setDouble(_iconScaleKey, settings.iconScaleFactor);
-    await prefs.setBool(_highContrastKey, settings.highContrast);
   }
 }

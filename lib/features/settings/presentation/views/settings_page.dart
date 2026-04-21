@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/providers/accessibility_provider.dart';
+import 'package:familly_baecon/core/providers/theme_mode_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/core/services/settings_service.dart';
 import 'package:familly_baecon/core/models/absence_period.dart';
-import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/profile/presentation/widgets/profile_avatar_widget.dart';
 
@@ -84,12 +84,17 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         ref.watch(backendMqttConnectedProvider);
     final lastSyncAt = ref.watch(backendLastSyncAtProvider);
     final forceSync = ref.watch(forceBackendSyncProvider);
-    final testMode = ref.watch(testModeProvider);
     final accessibility = ref.watch(accessibilitySettingsProvider);
     final accessibilityNotifier = ref.read(
       accessibilitySettingsProvider.notifier,
     );
-    final iconSize = Theme.of(context).iconTheme.size ?? 24;
+    final themeMode = ref.watch(themeModeProvider);
+    // Taille d'icône fixe pour la page Paramètres (ne suit pas les réglages
+    // utilisateur, hormis les deux icônes de prévisualisation des sliders).
+    const double iconSize = 24;
+    // Icônes de prévisualisation : reflètent la taille choisie par l'utilisateur.
+    final double previewIconSize = 24 * accessibility.iconScaleFactor;
+    final double previewTextFontSize = 16 * accessibility.textScaleFactor;
     final appTypography = Theme.of(context).extension<AppTypography>();
     final sectionTitleStyle =
         appTypography?.sectionLabel.copyWith(color: AppTheme.textSecondary) ??
@@ -98,7 +103,24 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
           fontWeight: FontWeight.w700,
         );
 
-    return Scaffold(
+    final mediaQuery = MediaQuery.of(context);
+    // Neutralise le textScaleFactor utilisateur sur la page Paramètres en
+    // remettant uniquement le multiplicateur de base de l'app.
+    final fixedMediaQuery = mediaQuery.copyWith(
+      textScaler: TextScaler.linear(AppTheme.baseTextScaleMultiplier),
+    );
+    // Thème figé : ignore les facteurs utilisateur (texte et icônes) pour que
+    // la page Paramètres reste stable, AppBar comprise.
+    final fixedTheme = AppTheme.buildTheme(
+      textScaleFactor: 1.0,
+      iconScaleFactor: 1.0,
+    );
+
+    return Theme(
+      data: fixedTheme,
+      child: MediaQuery(
+        data: fixedMediaQuery,
+        child: Scaffold(
       appBar: AppBar(title: const Text('Paramètres')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -148,7 +170,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             child: ListTile(
               leading: Icon(
                 Icons.circle,
-                size: (iconSize * 0.5).clamp(12, 20),
+                size: 12,
                 color: serverConnected
                     ? Colors.greenAccent
                     : Colors.redAccent,
@@ -245,6 +267,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             ),
           ),
           const SizedBox(height: 20),
+          Text('Apparence', style: sectionTitleStyle),
+          const SizedBox(height: 8),
+          Card(
+            child: SwitchListTile(
+              secondary: Icon(
+                themeMode == AppThemeMode.dark
+                    ? Icons.dark_mode
+                    : Icons.light_mode,
+                size: iconSize,
+                color: AppTheme.accentCyan,
+              ),
+              title: const Text('Mode sombre'),
+              subtitle: const Text(
+                'Bascule entre le thème clair et le thème sombre',
+              ),
+              value: themeMode == AppThemeMode.dark,
+              onChanged: (value) {
+                ref.read(themeModeProvider.notifier).setMode(
+                      value ? AppThemeMode.dark : AppThemeMode.light,
+                    );
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
           Text('Accessibilité', style: sectionTitleStyle),
           const SizedBox(height: 8),
           Card(
@@ -252,21 +298,27 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(
                 children: [
-                  SwitchListTile(
-                    title: const Text('Contraste renforcé'),
-                    subtitle: const Text(
-                      'Améliore la lisibilité des textes et des contours',
-                    ),
-                    value: accessibility.highContrast,
-                    onChanged: (value) {
-                      accessibilityNotifier.setHighContrast(value);
-                    },
-                  ),
                   ListTile(
-                    leading: Icon(Icons.text_fields, size: iconSize),
+                    leading: const Icon(Icons.text_fields, size: iconSize),
                     title: const Text('Taille du texte'),
                     subtitle: Text(
                       '${(accessibility.textScaleFactor * 100).round()}%',
+                    ),
+                    minVerticalPadding: 12,
+                    trailing: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Center(
+                        child: Text(
+                          'A',
+                          style: TextStyle(
+                            fontSize: previewTextFontSize,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                            height: 1.0,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   Padding(
@@ -284,19 +336,31 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                     ),
                   ),
                   ListTile(
-                    leading: Icon(Icons.touch_app, size: iconSize),
+                    leading: const Icon(Icons.touch_app, size: iconSize),
                     title: const Text('Taille des icônes'),
                     subtitle: Text(
                       '${(accessibility.iconScaleFactor * 100).round()}%',
+                    ),
+                    minVerticalPadding: 12,
+                    trailing: SizedBox(
+                      width: 56,
+                      height: 56,
+                      child: Center(
+                        child: Icon(
+                          Icons.star_rounded,
+                          size: previewIconSize,
+                          color: AppTheme.accentCyan,
+                        ),
+                      ),
                     ),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Slider(
-                      value: accessibility.iconScaleFactor,
+                      value: accessibility.iconScaleFactor.clamp(0.8, 1.3),
                       min: 0.8,
-                      max: 1.8,
-                      divisions: 10,
+                      max: 1.3,
+                      divisions: 5,
                       label:
                           '${(accessibility.iconScaleFactor * 100).round()}%',
                       onChanged: (value) {
@@ -308,40 +372,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          Text('Débug anomalies', style: sectionTitleStyle),
-          const SizedBox(height: 8),
-          Card(
-            child: RadioGroup<TestMode>(
-              groupValue: testMode,
-              onChanged: (mode) {
-                if (mode != null) {
-                  ref.read(testModeProvider.notifier).state = mode;
-                }
-              },
-              child: const Column(
-                children: [
-                  RadioListTile<TestMode>(
-                    value: TestMode.real,
-                    title: Text('🔄 Réel'),
-                  ),
-                  RadioListTile<TestMode>(
-                    value: TestMode.ok,
-                    title: Text('🟢 OK'),
-                  ),
-                  RadioListTile<TestMode>(
-                    value: TestMode.warning,
-                    title: Text('🟡 Warning'),
-                  ),
-                  RadioListTile<TestMode>(
-                    value: TestMode.critical,
-                    title: Text('🔴 Critical'),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
+      ),
+        ),
       ),
     );
   }

@@ -303,7 +303,8 @@ IconData _iconForActivity(String activityKey) {
     'déjeuner' => Icons.lunch_dining_rounded,
     'souper' => Icons.ramen_dining_rounded,
     'outside' => Icons.directions_walk_rounded,
-    _ => Icons.home_rounded,
+    'daily_activity' => Icons.timeline_rounded,
+    _ => Icons.info_outline_rounded,
   };
 }
 
@@ -314,6 +315,7 @@ String _prettyActivityLabel(String activityKey) {
     'déjeuner' => 'le déjeuner',
     'souper' => 'le souper',
     'outside' => 'la sortie',
+    'daily_activity' => "l'activité quotidienne",
     _ => "l'activité",
   };
 }

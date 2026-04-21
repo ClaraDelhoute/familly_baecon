@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/utils/orientation_lock.dart';
 import 'package:familly_baecon/core/providers/accessibility_provider.dart';
+import 'package:familly_baecon/core/providers/theme_mode_provider.dart';
 import 'package:familly_baecon/core/services/app_badge_service.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/splash/presentation/views/splash_screen.dart';
@@ -25,12 +26,14 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final accessibility = ref.watch(accessibilitySettingsProvider);
+    // Déclenche le rebuild quand le mode change ; AppTheme.applyMode est déjà
+    // appelé par le notifier, donc buildTheme lit les bonnes couleurs.
+    ref.watch(themeModeProvider);
     final globalTextScale =
         accessibility.textScaleFactor * AppTheme.baseTextScaleMultiplier;
     final theme = AppTheme.buildTheme(
       textScaleFactor: accessibility.textScaleFactor,
       iconScaleFactor: accessibility.iconScaleFactor,
-      highContrast: accessibility.highContrast,
     );
 
     return MaterialApp(

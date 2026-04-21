@@ -37,55 +37,96 @@ class AppTypography extends ThemeExtension<AppTypography> {
   }
 }
 
+enum AppThemeMode { light, dark }
+
 class AppTheme {
   static const double baseTextScaleMultiplier = 1.2;
   static const double baseIconScaleMultiplier = 1.2;
 
-  // Couleurs - Thème bleu-clair modernisé
-  static const Color darkBg = Color(0xFFF0F4F8); // Blanc-bleu très clair
-  static const Color darkBgLight = Color(0xFFFFFFFF); // Blanc pur
-  static const Color darkBgLighter = Color(0xFFE8F1F8); // Très clair bleu
-  static const Color accentBlue = Color(0xFF0066CC); // Bleu électrique
-  static const Color accentCyan = Color(0xFF0099FF); // Bleu ciel
-  static const Color accentGreen = Color(0xFF10B981); // Vert clair
-  static const Color textPrimary = Color(0xFF1A202C); // Bleu-noir foncé
-  static const Color textSecondary = Color(0xFF718096); // Gris-bleu modéré
+  // Couleurs neutres (mutables selon le mode). Les accents sont constants
+  // pour garder la cohérence des statuts et badges.
+  static Color darkBg = const Color(0xFFF0F4F8);
+  static Color darkBgLight = const Color(0xFFFFFFFF);
+  static Color darkBgLighter = const Color(0xFFE8F1F8);
+  static Color textPrimary = const Color(0xFF1A202C);
+  static Color textSecondary = const Color(0xFF718096);
+
+  // Accents (identiques en clair/sombre)
+  static const Color accentBlue = Color(0xFF0066CC);
+  static const Color accentCyan = Color(0xFF0099FF);
+  static const Color accentGreen = Color(0xFF10B981);
 
   // Couleurs activities
   static const Color activityGreen = Color(0xFF10B981);
   static const Color activityRed = Color(0xFFEF4444);
   static const Color activityPurple = Color(0xFF8B5CF6);
 
+  static AppThemeMode _mode = AppThemeMode.light;
+  static AppThemeMode get mode => _mode;
+
+  static void applyMode(AppThemeMode mode) {
+    _mode = mode;
+    if (mode == AppThemeMode.dark) {
+      darkBg = const Color(0xFF0F1620);
+      darkBgLight = const Color(0xFF1A2230);
+      darkBgLighter = const Color(0xFF232D3D);
+      textPrimary = const Color(0xFFE6EAF0);
+      textSecondary = const Color(0xFF9AA5B4);
+    } else {
+      darkBg = const Color(0xFFF0F4F8);
+      darkBgLight = const Color(0xFFFFFFFF);
+      darkBgLighter = const Color(0xFFE8F1F8);
+      textPrimary = const Color(0xFF1A202C);
+      textSecondary = const Color(0xFF718096);
+    }
+  }
+
   static ThemeData buildTheme({
     double textScaleFactor = 1.0,
     double iconScaleFactor = 1.0,
-    bool highContrast = false,
   }) {
     final scaledIcon =
-        (iconScaleFactor.clamp(0.8, 1.8)) * baseIconScaleMultiplier;
+        (iconScaleFactor.clamp(0.8, 1.3)) * baseIconScaleMultiplier;
     final baseText = baseTextScaleMultiplier;
-    final onSurfaceColor = highContrast ? const Color(0xFF111111) : textPrimary;
-    final secondaryTextColor = highContrast
-        ? const Color(0xFF1F2937)
-        : textSecondary;
-    final surfaceColor = highContrast ? Colors.white : darkBgLight;
-    final backgroundColor = highContrast ? const Color(0xFFF7F9FC) : darkBg;
+    final onSurfaceColor = textPrimary;
+    final secondaryTextColor = textSecondary;
+    final surfaceColor = darkBgLight;
+    final backgroundColor = darkBg;
+    final isDarkMode = _mode == AppThemeMode.dark;
+    final borderColor = isDarkMode
+        ? const Color(0xFF3A475A)
+        : const Color(0xFFBFC7D1);
+    final borderColorStrong = isDarkMode
+        ? const Color(0xFF4B5B70)
+        : const Color(0xFF98A6B8);
+    final dividerColor = isDarkMode
+        ? const Color(0xFF2D3848)
+        : const Color(0xFFC6CED8);
+
+    final isDark = _mode == AppThemeMode.dark;
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
+      brightness: isDark ? Brightness.dark : Brightness.light,
       scaffoldBackgroundColor: backgroundColor,
       primaryColor: accentBlue,
-      colorScheme: ColorScheme.light(
-        primary: accentBlue,
-        secondary: accentCyan,
-        surface: surfaceColor,
-        surfaceContainerHighest: highContrast
-            ? const Color(0xFFE5EAF2)
-            : darkBgLighter,
-        error: activityRed,
-        onSurface: onSurfaceColor,
-      ),
+      colorScheme: isDark
+          ? ColorScheme.dark(
+              primary: accentBlue,
+              secondary: accentCyan,
+              surface: surfaceColor,
+              surfaceContainerHighest: darkBgLighter,
+              error: activityRed,
+              onSurface: onSurfaceColor,
+            )
+          : ColorScheme.light(
+              primary: accentBlue,
+              secondary: accentCyan,
+              surface: surfaceColor,
+              surfaceContainerHighest: darkBgLighter,
+              error: activityRed,
+              onSurface: onSurfaceColor,
+            ),
       appBarTheme: AppBarTheme(
         backgroundColor: surfaceColor,
         elevation: 0,
@@ -101,7 +142,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surfaceColor,
-        indicatorColor: accentBlue.withValues(alpha: highContrast ? 0.2 : 0.1),
+        indicatorColor: accentBlue.withValues(alpha: 0.1),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return IconThemeData(color: accentBlue, size: 24 * scaledIcon);
@@ -120,10 +161,10 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: surfaceColor,
-        elevation: highContrast ? 5 : 4,
+        elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFFBFC7D1), width: 1.5),
+          side: BorderSide(color: borderColor, width: 1.5),
         ),
       ),
       textTheme: TextTheme(
@@ -181,30 +222,30 @@ class AppTheme {
         textColor: onSurfaceColor,
         minLeadingWidth: 24 * scaledIcon,
         shape: RoundedRectangleBorder(
-          side: const BorderSide(color: Color(0xFFCCD3DC), width: 1.2),
+          side: BorderSide(color: borderColor, width: 1.2),
           borderRadius: BorderRadius.circular(10),
         ),
       ),
-      dividerTheme: const DividerThemeData(
-        color: Color(0xFFC6CED8),
+      dividerTheme: DividerThemeData(
+        color: dividerColor,
         thickness: 1.2,
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFFBFC7D1), width: 1.5),
+          side: BorderSide(color: borderColor, width: 1.5),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFFBFC7D1), width: 1.5),
+          borderSide: BorderSide(color: borderColor, width: 1.5),
           borderRadius: BorderRadius.circular(10),
         ),
         focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFF98A6B8), width: 1.8),
+          borderSide: BorderSide(color: borderColorStrong, width: 1.8),
           borderRadius: BorderRadius.circular(10),
         ),
         border: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFFBFC7D1), width: 1.5),
+          borderSide: BorderSide(color: borderColor, width: 1.5),
           borderRadius: BorderRadius.circular(10),
         ),
       ),

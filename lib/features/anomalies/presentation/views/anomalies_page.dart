@@ -17,15 +17,7 @@ class AnomaliesPage extends ConsumerWidget {
     final focusedId = ref.watch(focusedAnomalyIdProvider);
     final anomalies = <AnomalyHistoryModel>[
       ...(anomaliesAsync.valueOrNull ?? const <AnomalyHistoryModel>[]),
-    ];
-
-    if (focusedId != null && anomalies.isNotEmpty) {
-      final index = anomalies.indexWhere((item) => item.id == focusedId);
-      if (index > 0) {
-        final focused = anomalies.removeAt(index);
-        anomalies.insert(0, focused);
-      }
-    }
+    ]..sort((a, b) => b.simulatedAt.compareTo(a.simulatedAt));
 
     return Scaffold(
       appBar: AppBar(
@@ -150,7 +142,8 @@ class _AnomaliesList extends StatelessWidget {
       final day = DateTime(local.year, local.month, local.day);
       map.putIfAbsent(day, () => []).add(item);
     }
-    return map;
+    final sortedKeys = map.keys.toList()..sort((a, b) => b.compareTo(a));
+    return {for (final key in sortedKeys) key: map[key]!};
   }
 }
 
@@ -384,7 +377,8 @@ IconData _iconForActivity(String activityKey) {
     'déjeuner'       => Icons.lunch_dining_rounded,
     'souper'         => Icons.ramen_dining_rounded,
     'outside'        => Icons.directions_walk_rounded,
-    _                => Icons.home_rounded,
+    'daily_activity' => Icons.timeline_rounded,
+    _                => Icons.info_outline_rounded,
   };
 }
 
@@ -395,7 +389,8 @@ String _prettyActivityLabel(String activityKey) {
     'déjeuner'       => 'Déjeuner',
     'souper'         => 'Souper',
     'outside'        => 'Sortie',
-    _                => activityKey,
+    'daily_activity' => 'Activité quotidienne',
+    _                => 'Activité',
   };
 }
 
@@ -441,6 +436,12 @@ String _shortAnomalyDescription(AnomalyHistoryModel anomaly, String personName) 
         'freq_high'      => "$who est sorti(e) plus souvent que d'habitude",
         'freq_low'       => "$who sort moins souvent que d'habitude",
         _                => "$who a eu une sortie inhabituelle",
+      },
+      'daily_activity' => switch (type) {
+        'missing'        => "Peu d'activité détectée chez $who aujourd'hui",
+        'freq_low'       => "$who est moins actif(ve) que d'habitude",
+        'freq_high'      => "$who est plus actif(ve) que d'habitude",
+        _                => "Activité inhabituelle pour $who",
       },
       _ => "Comportement inhabituel pour $who",
     };
