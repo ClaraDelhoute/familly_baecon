@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
+import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_read_provider.dart';
+import 'package:familly_baecon/features/journal/data/models/routine_activity_model.dart';
+import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 
 class AnomalyDetailPage extends ConsumerWidget {
   final AnomalyHistoryModel anomaly;
@@ -11,6 +14,9 @@ class AnomalyDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Marquer comme lu dès l'ouverture
+    ref.read(anomalyReadProvider.notifier).markRead(anomaly.id);
+
     final textTheme = Theme.of(context).textTheme;
     final isHigh = anomaly.severity == 'high';
     final accent = isHigh ? AppTheme.activityRed : AppTheme.accentBlue;
@@ -18,6 +24,17 @@ class AnomalyDetailPage extends ConsumerWidget {
     final notifTime = _toFranceTime(anomaly.lastSeenAt);
     final name = ref.watch(watchedPersonNameProvider);
     final title = _prettyTitle(anomaly, name);
+
+    // Heure habituelle depuis la routine
+    final routine = ref.watch(liveRoutineProvider).valueOrNull ?? const [];
+    final routineEntry = _matchRoutine(routine, anomaly.activityKey);
+    final usualTimeLabel = routineEntry?.startLabel;
+    final usualDurationLabel = routineEntry?.durationLabel;
+
+    // Heure détectée depuis simulatedAt (fiable)
+    final detectedTimeLabel = anomaly.anomalyType != 'missing'
+        ? '${activityTime.hour.toString().padLeft(2, '0')}h${activityTime.minute.toString().padLeft(2, '0')}'
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -30,7 +47,6 @@ class AnomalyDetailPage extends ConsumerWidget {
           _HeroCard(
             icon: _iconForActivity(anomaly.activityKey),
             accent: accent,
-            severityLabel: isHigh ? 'Important' : 'À surveiller',
             title: title,
           ),
           const SizedBox(height: 18),
@@ -67,60 +83,30 @@ class AnomalyDetailPage extends ConsumerWidget {
           const SizedBox(height: 18),
           _SectionTitle('Pourquoi cette alerte ?'),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.darkBgLight,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.textSecondary.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Text(
-              _explanationByType(anomaly.anomalyType),
-              style: textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textPrimary,
-                height: 1.5,
-              ),
-            ),
+          _AlertExplanationCard(
+            anomaly: anomaly,
+            accent: accent,
+            textTheme: textTheme,
+            detectedTimeLabel: detectedTimeLabel,
+            usualTimeLabel: usualTimeLabel,
+            usualDurationLabel: usualDurationLabel,
           ),
-          ...(() {
-            final metrics = _extractMetrics(anomaly.message);
-            if (metrics.isEmpty) return const <Widget>[];
-            return [
-              const SizedBox(height: 18),
-              _SectionTitle('Valeurs mesurées'),
-              const SizedBox(height: 8),
-              _InfoCard(
-                children: [
-                  for (var i = 0; i < metrics.length; i++) ...[
-                    if (i > 0) const _Separator(),
-                    _InfoRow(
-                      icon: Icons.insights_rounded,
-                      label: metrics[i],
-                      accent: accent,
-                    ),
-                  ],
-                ],
-              ),
-            ];
-          })(),
         ],
       ),
     );
   }
 }
 
+// ── Hero card (sans badge severity) ──────────────────────────────────────────
+
 class _HeroCard extends StatelessWidget {
   final IconData icon;
   final Color accent;
-  final String severityLabel;
   final String title;
 
   const _HeroCard({
     required this.icon,
     required this.accent,
-    required this.severityLabel,
     required this.title,
   });
 
@@ -148,38 +134,14 @@ class _HeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: Colors.white, size: 30),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  severityLabel,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-            ],
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.22),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 30),
           ),
           const SizedBox(height: 16),
           Text(
@@ -196,6 +158,171 @@ class _HeroCard extends StatelessWidget {
     );
   }
 }
+
+// ── Explication enrichie ──────────────────────────────────────────────────────
+
+class _AlertExplanationCard extends StatelessWidget {
+  final AnomalyHistoryModel anomaly;
+  final Color accent;
+  final TextTheme textTheme;
+  final String? detectedTimeLabel;
+  final String? usualTimeLabel;
+  final String? usualDurationLabel;
+
+  const _AlertExplanationCard({
+    required this.anomaly,
+    required this.accent,
+    required this.textTheme,
+    this.detectedTimeLabel,
+    this.usualTimeLabel,
+    this.usualDurationLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(IconData, String)>[];
+
+    if (anomaly.anomalyType == 'missing') {
+      rows.add((Icons.not_interested_rounded, 'Activité absente ce jour'));
+    } else {
+      if (detectedTimeLabel != null) {
+        rows.add((Icons.schedule_rounded, 'Heure détectée : $detectedTimeLabel'));
+      }
+      if (usualTimeLabel != null && usualTimeLabel!.isNotEmpty) {
+        rows.add((Icons.history_rounded, 'Heure habituelle : $usualTimeLabel'));
+      }
+      if (usualDurationLabel != null && usualDurationLabel!.isNotEmpty) {
+        rows.add((Icons.timelapse_rounded, 'Durée habituelle : $usualDurationLabel'));
+      }
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.darkBgLight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.textSecondary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Text(
+              _explanationByType(anomaly.anomalyType),
+              style: textTheme.bodyMedium?.copyWith(
+                color: AppTheme.textPrimary,
+                height: 1.5,
+              ),
+            ),
+          ),
+          if (rows.isNotEmpty) ...[
+            Divider(
+              height: 1,
+              thickness: 1,
+              color: AppTheme.textSecondary.withValues(alpha: 0.1),
+              indent: 16,
+              endIndent: 16,
+            ),
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0)
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: AppTheme.textSecondary.withValues(alpha: 0.07),
+                  indent: 56,
+                  endIndent: 16,
+                ),
+              _DataRow(icon: rows[i].$1, label: rows[i].$2, accent: accent),
+            ],
+            const SizedBox(height: 4),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DataRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color accent;
+
+  const _DataRow({
+    required this.icon,
+    required this.label,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: accent, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Routine matching ──────────────────────────────────────────────────────────
+
+RoutineActivityModel? _matchRoutine(
+  List<RoutineActivityModel> routine,
+  String activityKey,
+) {
+  // Correspondance activityKey → sensorType attendu dans la routine
+  final targetSensor = switch (activityKey) {
+    'sleep'          => 'sleep',
+    'petit-déjeuner' => 'petit-dejeuner',
+    'déjeuner'       => 'dejeuner',
+    'souper'         => 'souper',
+    'outside'        => 'outside',
+    'daily_activity' => 'activity_profile',
+    _                => activityKey,
+  };
+
+  try {
+    return routine.firstWhere(
+      (r) => r.sensorType.toLowerCase() == targetSensor.toLowerCase(),
+    );
+  } catch (_) {
+    // Tentative avec correspondance partielle
+    try {
+      return routine.firstWhere(
+        (r) => r.sensorType.toLowerCase().contains(targetSensor.toLowerCase()) ||
+               targetSensor.toLowerCase().contains(r.sensorType.toLowerCase()),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+// ── Shared helpers ────────────────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
   final String text;
@@ -298,25 +425,25 @@ class _Separator extends StatelessWidget {
 
 IconData _iconForActivity(String activityKey) {
   return switch (activityKey) {
-    'sleep' => Icons.bedtime_rounded,
+    'sleep'          => Icons.bedtime_rounded,
     'petit-déjeuner' => Icons.free_breakfast_rounded,
-    'déjeuner' => Icons.lunch_dining_rounded,
-    'souper' => Icons.ramen_dining_rounded,
-    'outside' => Icons.directions_walk_rounded,
+    'déjeuner'       => Icons.restaurant_rounded,
+    'souper'         => Icons.ramen_dining_rounded,
+    'outside'        => Icons.directions_walk_rounded,
     'daily_activity' => Icons.timeline_rounded,
-    _ => Icons.info_outline_rounded,
+    _                => Icons.info_outline_rounded,
   };
 }
 
 String _prettyActivityLabel(String activityKey) {
   return switch (activityKey) {
-    'sleep' => 'le sommeil',
+    'sleep'          => 'le sommeil',
     'petit-déjeuner' => 'le petit-déjeuner',
-    'déjeuner' => 'le déjeuner',
-    'souper' => 'le souper',
-    'outside' => 'la sortie',
+    'déjeuner'       => 'le déjeuner',
+    'souper'         => 'le souper',
+    'outside'        => 'la sortie',
     'daily_activity' => "l'activité quotidienne",
-    _ => "l'activité",
+    _                => "l'activité",
   };
 }
 
@@ -327,47 +454,43 @@ String _prettyTitle(AnomalyHistoryModel anomaly, String personName) {
   if (who != null) {
     return switch (anomaly.activityKey) {
       'sleep' => switch (type) {
-        'missing' => '$who n\'a pas dormi cette nuit.',
-        'timing' => '$who s\'est couché(e) à un horaire inhabituel.',
+        'missing'        => '$who n\'a pas dormi cette nuit.',
+        'timing'         => '$who s\'est couché(e) à un horaire inhabituel.',
         'duration_short' => '$who a dormi moins longtemps que d\'habitude.',
-        'duration_long' => '$who a dormi plus longtemps que d\'habitude.',
-        'freq_high' => '$who s\'est recouché(e) plus souvent que d\'habitude.',
-        'freq_low' => '$who a peu dormi aujourd\'hui.',
-        _ => '$who a eu un sommeil inhabituel.',
+        'duration_long'  => '$who a dormi plus longtemps que d\'habitude.',
+        'freq_high'      => '$who s\'est recouché(e) plus souvent que d\'habitude.',
+        'freq_low'       => '$who a peu dormi aujourd\'hui.',
+        _                => '$who a eu un sommeil inhabituel.',
       },
       'petit-déjeuner' => switch (type) {
-        'missing' => '$who n\'a pas pris son petit-déjeuner ce matin.',
-        'timing' => '$who a petit-déjeuné à un horaire inhabituel.',
-        'duration_short' =>
-          '$who a pris un petit-déjeuner plus rapide que d\'habitude.',
-        'duration_long' =>
-          '$who a pris un petit-déjeuner plus long que d\'habitude.',
-        _ => '$who a eu un petit-déjeuner inhabituel.',
+        'missing'        => '$who n\'a pas pris son petit-déjeuner ce matin.',
+        'timing'         => '$who a petit-déjeuné à un horaire inhabituel.',
+        'duration_short' => '$who a pris un petit-déjeuner plus rapide que d\'habitude.',
+        'duration_long'  => '$who a pris un petit-déjeuner plus long que d\'habitude.',
+        _                => '$who a eu un petit-déjeuner inhabituel.',
       },
       'déjeuner' => switch (type) {
-        'missing' => '$who n\'a pas déjeuné aujourd\'hui.',
-        'timing' => '$who a déjeuné à un horaire inhabituel.',
+        'missing'        => '$who n\'a pas déjeuné aujourd\'hui.',
+        'timing'         => '$who a déjeuné à un horaire inhabituel.',
         'duration_short' => '$who a déjeuné plus rapidement que d\'habitude.',
-        'duration_long' => '$who a déjeuné plus longuement que d\'habitude.',
-        _ => '$who a eu un déjeuner inhabituel.',
+        'duration_long'  => '$who a déjeuné plus longuement que d\'habitude.',
+        _                => '$who a eu un déjeuner inhabituel.',
       },
       'souper' => switch (type) {
-        'missing' => '$who n\'a pas soupé ce soir.',
-        'timing' => '$who a soupé à un horaire inhabituel.',
+        'missing'        => '$who n\'a pas soupé ce soir.',
+        'timing'         => '$who a soupé à un horaire inhabituel.',
         'duration_short' => '$who a soupé plus rapidement que d\'habitude.',
-        'duration_long' => '$who a soupé plus longuement que d\'habitude.',
-        _ => '$who a eu un souper inhabituel.',
+        'duration_long'  => '$who a soupé plus longuement que d\'habitude.',
+        _                => '$who a eu un souper inhabituel.',
       },
       'outside' => switch (type) {
-        'missing' => '$who n\'est pas sorti(e) aujourd\'hui.',
-        'timing' => '$who est sorti(e) à un horaire inhabituel.',
-        'duration_short' =>
-          '$who est resté(e) sorti(e) moins longtemps que d\'habitude.',
-        'duration_long' =>
-          '$who est resté(e) sorti(e) plus longtemps que d\'habitude.',
-        'freq_high' => '$who est sorti(e) plus souvent que d\'habitude.',
-        'freq_low' => '$who sort moins souvent que d\'habitude.',
-        _ => '$who a eu une sortie inhabituelle.',
+        'missing'        => '$who n\'est pas sorti(e) aujourd\'hui.',
+        'timing'         => '$who est sorti(e) à un horaire inhabituel.',
+        'duration_short' => '$who est resté(e) sorti(e) moins longtemps que d\'habitude.',
+        'duration_long'  => '$who est resté(e) sorti(e) plus longtemps que d\'habitude.',
+        'freq_high'      => '$who est sorti(e) plus souvent que d\'habitude.',
+        'freq_low'       => '$who sort moins souvent que d\'habitude.',
+        _                => '$who a eu une sortie inhabituelle.',
       },
       _ => 'Comportement inhabituel détecté pour $who.',
     };
@@ -376,68 +499,14 @@ String _prettyTitle(AnomalyHistoryModel anomaly, String personName) {
   final label = _prettyActivityLabel(anomaly.activityKey);
   final cap = '${label[0].toUpperCase()}${label.substring(1)}';
   return switch (type) {
-    'missing' => '$cap absent aujourd\'hui.',
-    'timing' => '$cap à un horaire inhabituel.',
+    'missing'        => '$cap absent aujourd\'hui.',
+    'timing'         => '$cap à un horaire inhabituel.',
     'duration_short' => '$cap plus court que d\'habitude.',
-    'duration_long' => '$cap plus long que d\'habitude.',
-    'freq_high' => '$cap plus fréquent que d\'habitude.',
-    'freq_low' => '$cap moins fréquent que d\'habitude.',
-    _ => '$cap : comportement inhabituel.',
+    'duration_long'  => '$cap plus long que d\'habitude.',
+    'freq_high'      => '$cap plus fréquent que d\'habitude.',
+    'freq_low'       => '$cap moins fréquent que d\'habitude.',
+    _                => '$cap : comportement inhabituel.',
   };
-}
-
-List<String> _extractMetrics(String rawMessage) {
-  final result = <String>[];
-  if (rawMessage.isEmpty) return result;
-  final paren = RegExp(r'\(([^)]+)\)').firstMatch(rawMessage)?.group(1)?.trim();
-  final source = (paren != null && paren.isNotEmpty) ? paren : rawMessage;
-
-  final ratioVs = RegExp(
-    r'ratio\s*[:=]\s*([\d.]+)\s*vs\s*normal\s*[:=]\s*([\d.]+)',
-    caseSensitive: false,
-  ).firstMatch(source);
-  if (ratioVs != null) {
-    final ratio = double.tryParse(ratioVs.group(1)!);
-    final normal = double.tryParse(ratioVs.group(2)!);
-    if (ratio != null && normal != null && normal > 0) {
-      final pct = ((ratio - normal) / normal * 100).round();
-      final sign = pct >= 0 ? '+' : '';
-      result.add('$sign$pct % par rapport à la moyenne');
-    }
-    result.add(
-      'Ratio mesuré : ${ratioVs.group(1)} (valeur normale : ${ratioVs.group(2)})',
-    );
-  } else {
-    final ratio = RegExp(
-      r'ratio\s*[:=]\s*([\d.]+)',
-      caseSensitive: false,
-    ).firstMatch(source);
-    if (ratio != null) {
-      result.add('Ratio mesuré : ${ratio.group(1)}×');
-    }
-  }
-
-  final similarity = RegExp(
-    r'similarit[eé]\s*[:=]\s*([\d.]+)',
-    caseSensitive: false,
-  ).firstMatch(source);
-  if (similarity != null) {
-    final value = double.tryParse(similarity.group(1)!);
-    if (value != null) {
-      final pct = (value <= 1 ? value * 100 : value).round();
-      result.add('Ressemblance avec la routine : $pct %');
-    }
-  }
-
-  final score = RegExp(
-    r'score\s*[:=]\s*([\d.]+)',
-    caseSensitive: false,
-  ).firstMatch(source);
-  if (score != null) {
-    result.add('Score d\'écart : ${score.group(1)}');
-  }
-
-  return result;
 }
 
 String _explanationByType(String type) {
@@ -472,27 +541,11 @@ String _dayLabel(DateTime day) {
   final yesterday = today.subtract(const Duration(days: 1));
   if (_isSameDay(d, yesterday)) return 'Hier';
   const weekdays = [
-    'lundi',
-    'mardi',
-    'mercredi',
-    'jeudi',
-    'vendredi',
-    'samedi',
-    'dimanche',
+    'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
   ];
   const months = [
-    'janvier',
-    'février',
-    'mars',
-    'avril',
-    'mai',
-    'juin',
-    'juillet',
-    'août',
-    'septembre',
-    'octobre',
-    'novembre',
-    'décembre',
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
   ];
   final weekday = weekdays[day.weekday - 1];
   final month = months[day.month - 1];
@@ -522,9 +575,7 @@ DateTime _todayFrance() {
 
 DateTime _toFranceTime(DateTime date) {
   final utc = date.toUtc();
-  final isDst = _isFranceDst(utc);
-  final offsetHours = isDst ? 2 : 1;
-  return utc.add(Duration(hours: offsetHours));
+  return utc.add(Duration(hours: _isFranceDst(utc) ? 2 : 1));
 }
 
 bool _isFranceDst(DateTime utc) {

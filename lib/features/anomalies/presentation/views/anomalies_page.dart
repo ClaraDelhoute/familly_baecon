@@ -4,6 +4,7 @@ import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
+import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_read_provider.dart';
 import 'package:familly_baecon/features/anomalies/presentation/views/anomaly_detail_page.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
@@ -15,6 +16,7 @@ class AnomaliesPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final anomaliesAsync = ref.watch(liveAnomaliesProvider);
     final focusedId = ref.watch(focusedAnomalyIdProvider);
+    final readIds = ref.watch(anomalyReadProvider);
     final anomalies = <AnomalyHistoryModel>[
       ...(anomaliesAsync.valueOrNull ?? const <AnomalyHistoryModel>[]),
     ]..sort((a, b) => b.simulatedAt.compareTo(a.simulatedAt));
@@ -37,7 +39,11 @@ class AnomaliesPage extends ConsumerWidget {
       ),
       body: anomalies.isEmpty
           ? const _EmptyState()
-          : _AnomaliesList(anomalies: anomalies, focusedId: focusedId),
+          : _AnomaliesList(
+              anomalies: anomalies,
+              focusedId: focusedId,
+              readIds: readIds,
+            ),
     );
   }
 }
@@ -90,40 +96,53 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-class _AnomaliesList extends StatelessWidget {
+class _AnomaliesList extends ConsumerStatefulWidget {
   final List<AnomalyHistoryModel> anomalies;
   final int? focusedId;
+  final Set<int> readIds;
 
-  const _AnomaliesList({required this.anomalies, this.focusedId});
+  const _AnomaliesList({
+    required this.anomalies,
+    required this.readIds,
+    this.focusedId,
+  });
+
+  @override
+  ConsumerState<_AnomaliesList> createState() => _AnomaliesListState();
+}
+
+class _AnomaliesListState extends ConsumerState<_AnomaliesList> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.focusedId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.read(focusedAnomalyIdProvider.notifier).state = null;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final anomalies = widget.anomalies;
+    final focusedId = widget.focusedId;
+    final readIds = widget.readIds;
     final grouped = _groupByDay(anomalies);
-    final highToday = anomalies
-        .where(
-          (a) =>
-              a.severity == 'high' &&
-              _isSameDay(_toFranceTime(a.simulatedAt), _todayFrance()),
-        )
-        .length;
-    final totalToday = anomalies
-        .where(
-          (a) => _isSameDay(_toFranceTime(a.simulatedAt), _todayFrance()),
-        )
-        .length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        _TodaySummary(total: totalToday, severe: highToday),
-        const SizedBox(height: 18),
         for (final entry in grouped.entries) ...[
-          _DayHeader(day: entry.key),
+          _DayHeader(
+            day: entry.key,
+            unreadCount: entry.value.where((a) => !readIds.contains(a.id)).length,
+          ),
           const SizedBox(height: 10),
           for (final anomaly in entry.value) ...[
             _AnomalyCard(
               anomaly: anomaly,
               highlighted: anomaly.id == focusedId,
+              isRead: readIds.contains(anomaly.id),
             ),
             const SizedBox(height: 10),
           ],
@@ -147,111 +166,58 @@ class _AnomaliesList extends StatelessWidget {
   }
 }
 
-class _TodaySummary extends StatelessWidget {
-  final int total;
-  final int severe;
+// ── Day header ────────────────────────────────────────────────────────────────
 
-  const _TodaySummary({required this.total, required this.severe});
+class _DayHeader extends StatelessWidget {
+  final DateTime day;
+  final int unreadCount;
+  const _DayHeader({required this.day, required this.unreadCount});
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final hasAny = total > 0;
-    final accent = severe > 0
-        ? AppTheme.activityRed
-        : (hasAny ? AppTheme.accentBlue : AppTheme.activityGreen);
-
-    final title = severe > 0
-        ? "À surveiller aujourd'hui"
-        : (hasAny ? "Quelques écarts aujourd'hui" : 'Journée sans souci');
-    final subtitle = severe > 0
-        ? '$severe anomalie${severe > 1 ? 's' : ''} importante${severe > 1 ? 's' : ''} sur $total au total'
-        : (hasAny
-              ? '$total anomalie${total > 1 ? 's' : ''} légère${total > 1 ? 's' : ''} détectée${total > 1 ? 's' : ''}'
-              : 'Aucune anomalie détectée ce jour');
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: accent.withValues(alpha: 0.25), width: 1.5),
-      ),
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 4, top: 4),
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.14),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              severe > 0
-                  ? Icons.warning_amber_rounded
-                  : (hasAny
-                        ? Icons.info_outline_rounded
-                        : Icons.check_circle_rounded),
-              color: accent,
-              size: 28,
+          Text(
+            _dayLabel(day),
+            style: TextStyle(
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 13,
-                    height: 1.3,
-                  ),
-                ),
-              ],
+          if (unreadCount > 0) ...[
+            const SizedBox(width: 6),
+            Text(
+              '— $unreadCount non ${unreadCount > 1 ? 'lues' : 'lue'}',
+              style: TextStyle(
+                color: AppTheme.activityRed,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _DayHeader extends StatelessWidget {
-  final DateTime day;
-  const _DayHeader({required this.day});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 4, top: 4),
-      child: Text(
-        _dayLabel(day),
-        style: TextStyle(
-          color: AppTheme.textSecondary,
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
+// ── Anomaly card ──────────────────────────────────────────────────────────────
 
 class _AnomalyCard extends ConsumerWidget {
   final AnomalyHistoryModel anomaly;
   final bool highlighted;
+  final bool isRead;
 
-  const _AnomalyCard({required this.anomaly, this.highlighted = false});
+  const _AnomalyCard({
+    required this.anomaly,
+    required this.isRead,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -264,12 +230,19 @@ class _AnomalyCard extends ConsumerWidget {
     final anomalyNature = _shortAnomalyDescription(anomaly, name);
     final when = _activityWhenLabel(anomaly);
 
+    final cardColor = AppTheme.darkBgLight;
+    final borderColor = highlighted
+        ? accent.withValues(alpha: 0.6)
+        : AppTheme.textSecondary.withValues(alpha: 0.12);
+    final borderWidth = highlighted ? 2.0 : 1.0;
+
     return Material(
-      color: AppTheme.darkBgLight,
+      color: cardColor,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () {
+          ref.read(anomalyReadProvider.notifier).markRead(anomaly.id);
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -277,92 +250,90 @@ class _AnomalyCard extends ConsumerWidget {
             ),
           );
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: highlighted
-                  ? accent.withValues(alpha: 0.6)
-                  : AppTheme.textSecondary.withValues(alpha: 0.12),
-              width: highlighted ? 2 : 1,
+        child: SizedBox(
+          height: 88,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: borderColor, width: borderWidth),
             ),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(activityIcon, color: accent, size: 26),
                 ),
-                child: Icon(activityIcon, color: accent, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      activityName,
-                      style: (textTheme.titleLarge ??
-                              const TextStyle(fontSize: 20))
-                          .copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                            height: 1.15,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      anomalyNature,
-                      style: TextStyle(
-                        color: accent,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule_rounded,
-                          size: 14,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            when,
-                            style: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        activityName,
+                        style: (textTheme.titleLarge ??
+                                const TextStyle(fontSize: 20))
+                            .copyWith(
+                              fontWeight: isRead ? FontWeight.w400 : FontWeight.w800,
+                              color: isRead ? AppTheme.textSecondary : AppTheme.textPrimary,
+                              height: 1.15,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        anomalyNature,
+                        style: TextStyle(
+                          color: isRead ? AppTheme.textSecondary : AppTheme.textPrimary,
+                          fontSize: 13,
+                          fontWeight: isRead ? FontWeight.w400 : FontWeight.w600,
+                          height: 1.2,
                         ),
-                      ],
-                    ),
-                  ],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 13,
+                            color: AppTheme.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              when,
+                              style: TextStyle(
+                                color: AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: AppTheme.textSecondary,
-                size: 24,
-              ),
-            ],
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary,
+                  size: 24,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -370,11 +341,13 @@ class _AnomalyCard extends ConsumerWidget {
   }
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 IconData _iconForActivity(String activityKey) {
   return switch (activityKey) {
     'sleep'          => Icons.bedtime_rounded,
     'petit-déjeuner' => Icons.free_breakfast_rounded,
-    'déjeuner'       => Icons.lunch_dining_rounded,
+    'déjeuner'       => Icons.restaurant_rounded,
     'souper'         => Icons.ramen_dining_rounded,
     'outside'        => Icons.directions_walk_rounded,
     'daily_activity' => Icons.timeline_rounded,
@@ -394,67 +367,15 @@ String _prettyActivityLabel(String activityKey) {
   };
 }
 
-String _shortAnomalyDescription(AnomalyHistoryModel anomaly, String personName) {
-  final who = personName.isNotEmpty ? personName : null;
-  final type = anomaly.anomalyType;
-
-  if (who != null) {
-    return switch (anomaly.activityKey) {
-      'sleep' => switch (type) {
-        'missing'        => "$who n'a pas dormi cette nuit",
-        'timing'         => "$who s'est couché(e) à un horaire inhabituel",
-        'duration_short' => "$who a dormi moins longtemps que d'habitude",
-        'duration_long'  => "$who a dormi plus longtemps que d'habitude",
-        _                => "$who a eu un sommeil inhabituel",
-      },
-      'petit-déjeuner' => switch (type) {
-        'missing'        => "$who n'a pas pris son petit-déjeuner",
-        'timing'         => "$who a petit-déjeuné à un horaire inhabituel",
-        'duration_short' => "$who a pris un petit-déjeuner plus rapide que d'habitude",
-        'duration_long'  => "$who a pris un petit-déjeuner plus long que d'habitude",
-        _                => "$who a eu un petit-déjeuner inhabituel",
-      },
-      'déjeuner' => switch (type) {
-        'missing'        => "$who n'a pas déjeuné aujourd'hui",
-        'timing'         => "$who a déjeuné à un horaire inhabituel",
-        'duration_short' => "$who a déjeuné plus rapidement que d'habitude",
-        'duration_long'  => "$who a déjeuné plus longuement que d'habitude",
-        _                => "$who a eu un déjeuner inhabituel",
-      },
-      'souper' => switch (type) {
-        'missing'        => "$who n'a pas soupé ce soir",
-        'timing'         => "$who a soupé à un horaire inhabituel",
-        'duration_short' => "$who a soupé plus rapidement que d'habitude",
-        'duration_long'  => "$who a soupé plus longuement que d'habitude",
-        _                => "$who a eu un souper inhabituel",
-      },
-      'outside' => switch (type) {
-        'missing'        => "$who n'est pas sorti(e) aujourd'hui",
-        'timing'         => "$who est sorti(e) à un horaire inhabituel",
-        'duration_short' => "$who est resté(e) sorti(e) moins longtemps que d'habitude",
-        'duration_long'  => "$who est resté(e) sorti(e) plus longtemps que d'habitude",
-        'freq_high'      => "$who est sorti(e) plus souvent que d'habitude",
-        'freq_low'       => "$who sort moins souvent que d'habitude",
-        _                => "$who a eu une sortie inhabituelle",
-      },
-      'daily_activity' => switch (type) {
-        'missing'        => "Peu d'activité détectée chez $who aujourd'hui",
-        'freq_low'       => "$who est moins actif(ve) que d'habitude",
-        'freq_high'      => "$who est plus actif(ve) que d'habitude",
-        _                => "Activité inhabituelle pour $who",
-      },
-      _ => "Comportement inhabituel pour $who",
-    };
-  }
-
-  return switch (type) {
-    'missing'        => "N'a pas eu lieu aujourd'hui",
-    'timing'         => "A eu lieu à un horaire inhabituel",
-    'duration_short' => "A duré moins longtemps que prévu",
-    'duration_long'  => "A duré plus longtemps que prévu",
-    'freq_high'      => "S'est produit plus souvent que d'habitude",
-    'freq_low'       => "S'est produit moins souvent que d'habitude",
-    _                => "Comportement inhabituel détecté",
+String _shortAnomalyDescription(AnomalyHistoryModel anomaly, String _) {
+  return switch (anomaly.anomalyType) {
+    'missing'        => 'Activité manquante',
+    'timing'         => 'Horaire inhabituel',
+    'duration_short' => 'Durée plus courte que d\'habitude',
+    'duration_long'  => 'Durée plus longue que d\'habitude',
+    'freq_high'      => 'Fréquence anormalement élevée',
+    'freq_low'       => 'Fréquence anormalement basse',
+    _                => 'Comportement inhabituel',
   };
 }
 
@@ -478,27 +399,11 @@ String _dayLabel(DateTime day) {
   final yesterday = today.subtract(const Duration(days: 1));
   if (_isSameDay(day, yesterday)) return 'Hier';
   const weekdays = [
-    'lundi',
-    'mardi',
-    'mercredi',
-    'jeudi',
-    'vendredi',
-    'samedi',
-    'dimanche',
+    'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche',
   ];
   const months = [
-    'janvier',
-    'février',
-    'mars',
-    'avril',
-    'mai',
-    'juin',
-    'juillet',
-    'août',
-    'septembre',
-    'octobre',
-    'novembre',
-    'décembre',
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre',
   ];
   final weekday = weekdays[day.weekday - 1];
   final month = months[day.month - 1];
@@ -517,8 +422,7 @@ DateTime _todayFrance() {
 DateTime _toFranceTime(DateTime date) {
   final utc = date.toUtc();
   final isDst = _isFranceDst(utc);
-  final offsetHours = isDst ? 2 : 1;
-  return utc.add(Duration(hours: offsetHours));
+  return utc.add(Duration(hours: isDst ? 2 : 1));
 }
 
 bool _isFranceDst(DateTime utc) {

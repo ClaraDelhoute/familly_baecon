@@ -5,62 +5,115 @@ import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_s
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 
-class AnalysePage extends ConsumerWidget {
+enum _Period { day, week, month, year }
+
+class AnalysePage extends ConsumerStatefulWidget {
   final Function(int)? onNavigate;
   const AnalysePage({super.key, this.onNavigate});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AnalysePage> createState() => _AnalysePageState();
+}
+
+class _AnalysePageState extends ConsumerState<AnalysePage> {
+  _Period _period = _Period.week;
+
+  int get _maxDays => switch (_period) {
+        _Period.day => 1,
+        _Period.week => 7,
+        _Period.month => 30,
+        _Period.year => 365,
+      };
+
+  String get _periodLabel => switch (_period) {
+        _Period.day => 'Aujourd\'hui',
+        _Period.week => 'Cette semaine',
+        _Period.month => 'Ce mois',
+        _Period.year => 'Cette année',
+      };
+
+  @override
+  Widget build(BuildContext context) {
     final observed =
         ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
     final anomalies =
         ref.watch(liveAnomaliesProvider).valueOrNull ?? const [];
 
-    final dailyStats = BehaviorStatsService.buildDailyStats(observed, maxDays: 14);
-
-    // Stats semaine courante (7 derniers jours)
-    final weekStats = dailyStats.length >= 7
-        ? dailyStats.sublist(dailyStats.length - 7)
-        : dailyStats;
-
     final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-    final anomaliesThisWeek =
-        anomalies.where((a) => a.lastSeenAt.isAfter(weekAgo)).length;
+    final periodStart = now.subtract(Duration(days: _maxDays));
 
-    final mealsThisWeek = weekStats.fold(0, (s, d) => s + d.mealsCount);
-    final maxMealsPossible = weekStats.length * 3;
+    final dailyStats =
+        BehaviorStatsService.buildDailyStats(observed, maxDays: _maxDays);
 
-    final avgSleepH = weekStats.isEmpty
+    final periodAnomalies =
+        anomalies.where((a) => a.lastSeenAt.isAfter(periodStart)).length;
+
+    // Nombre de repas
+    final mealsCount = dailyStats.fold(0, (s, d) => s + d.mealsCount);
+
+    // Sommeil moyen (h)
+    final avgSleepH = dailyStats.isEmpty
         ? 0.0
-        : weekStats.fold(0, (s, d) => s + d.sleepMinutes) /
-            weekStats.length /
+        : dailyStats.fold(0, (s, d) => s + d.sleepMinutes) /
+            dailyStats.length /
             60;
 
-    // Nuits courtes : sommeil < 5h
-    final disturbedNights =
-        weekStats.where((d) => d.sleepMinutes < 300).length;
-
-    // Jours sans activité détectée
-    final inactiveDays =
-        weekStats.where((d) => d.totalActivities == 0).length;
-
-    // Lever moyen : moyenne des firstActivityMinute des jours avec données
-    final daysWithFirst = weekStats
-        .where((d) => d.firstActivityMinute != null)
+    // Heure de coucher : dernière activité sleep de chaque jour → startAt
+    final periodActivities = observed
+        .where((a) => a.startAt.isAfter(periodStart))
         .toList();
-    final avgFirstMinute = daysWithFirst.isEmpty
+
+    final sleepActivities =
+        periodActivities.where((a) => a.type == 'sleep').toList();
+
+    // Coucher : heure de début du sleep
+    final bedtimeMinutes = sleepActivities
+        .map((a) => a.startAt.hour * 60 + a.startAt.minute)
+        .toList();
+    final avgBedtimeMinute = bedtimeMinutes.isEmpty
         ? null
-        : daysWithFirst
-                .map((d) => d.firstActivityMinute!)
-                .reduce((a, b) => a + b) /
-            daysWithFirst.length;
-    final avgFirstLabel = avgFirstMinute == null
+        : bedtimeMinutes.reduce((a, b) => a + b) / bedtimeMinutes.length;
+    final avgBedtimeLabel = _minuteToLabel(avgBedtimeMinute);
+
+    // Réveil : heure de fin du sleep (endAt) ou startAt + durationMin
+    final wakeMinutes = sleepActivities
+        .map((a) {
+          if (a.endAt != null) {
+            return a.endAt!.hour * 60 + a.endAt!.minute;
+          } else if (a.durationMin != null) {
+            final end = a.startAt.add(Duration(minutes: a.durationMin!));
+            return end.hour * 60 + end.minute;
+          }
+          return null;
+        })
+        .whereType<int>()
+        .toList();
+    final avgWakeMinute = wakeMinutes.isEmpty
+        ? null
+        : wakeMinutes.reduce((a, b) => a + b) / wakeMinutes.length;
+    final avgWakeLabel = _minuteToLabel(avgWakeMinute);
+
+    // Durée moyenne d'une sortie
+    final outingActivities =
+        periodActivities.where((a) => a.type == 'sortie').toList();
+    final outingDurations = outingActivities
+        .map((a) {
+          if (a.durationMin != null) return a.durationMin!;
+          if (a.endAt != null) {
+            return a.endAt!.difference(a.startAt).inMinutes;
+          }
+          return null;
+        })
+        .whereType<int>()
+        .toList();
+    final avgOutingMin = outingDurations.isEmpty
+        ? null
+        : outingDurations.reduce((a, b) => a + b) / outingDurations.length;
+    final avgOutingLabel = avgOutingMin == null
         ? '--'
-        : '${(avgFirstMinute ~/ 60).toString().padLeft(2, '0')}h'
-            '${(avgFirstMinute % 60).round().toString().padLeft(2, '0')}';
-    final avgFirstGood =
-        avgFirstMinute != null && avgFirstMinute >= 6 * 60 && avgFirstMinute <= 10 * 60;
+        : avgOutingMin >= 60
+            ? '${(avgOutingMin / 60).toStringAsFixed(1)}h'
+            : '${avgOutingMin.round()}min';
 
     return Scaffold(
       appBar: AppBar(
@@ -82,7 +135,12 @@ class AnalysePage extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionLabel('Cette semaine'),
+            _PeriodSelector(
+              selected: _period,
+              onChanged: (p) => setState(() => _period = p),
+            ),
+            const SizedBox(height: 20),
+            _SectionLabel(_periodLabel),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -90,10 +148,9 @@ class AnalysePage extends ConsumerWidget {
                   child: _StatTile(
                     icon: Icons.restaurant_rounded,
                     color: AppTheme.activityPurple,
-                    value: '$mealsThisWeek',
+                    value: '$mealsCount',
                     label: 'Repas pris',
-                    sub: 'sur $maxMealsPossible possibles',
-                    good: mealsThisWeek >= (maxMealsPossible * 0.75).round(),
+                    good: true,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -103,7 +160,6 @@ class AnalysePage extends ConsumerWidget {
                     color: AppTheme.activityGreen,
                     value: '${avgSleepH.toStringAsFixed(1)}h',
                     label: 'Sommeil moyen',
-                    sub: 'par nuit',
                     good: avgSleepH >= 6,
                   ),
                 ),
@@ -114,25 +170,24 @@ class AnalysePage extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _StatTile(
-                    icon: Icons.nightlight_round,
+                    icon: Icons.nights_stay_rounded,
                     color: AppTheme.accentBlue,
-                    value: '$disturbedNights',
-                    label: 'Nuits courtes',
-                    sub: 'moins de 5h de sommeil',
-                    good: disturbedNights == 0,
-                    goodIsZero: true,
+                    value: avgBedtimeLabel,
+                    label: 'Heure de coucher',
+                    good: avgBedtimeMinute == null ||
+                        (avgBedtimeMinute >= 20 * 60 &&
+                            avgBedtimeMinute <= 24 * 60),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatTile(
-                    icon: Icons.warning_amber_rounded,
-                    color: AppTheme.activityRed,
-                    value: '$anomaliesThisWeek',
-                    label: 'Anomalies',
-                    sub: 'détectées cette semaine',
-                    good: anomaliesThisWeek == 0,
-                    goodIsZero: true,
+                    icon: Icons.wb_sunny_rounded,
+                    color: AppTheme.accentCyan,
+                    value: avgWakeLabel,
+                    label: 'Heure de réveil',
+                    good: avgWakeMinute == null ||
+                        (avgWakeMinute >= 6 * 60 && avgWakeMinute <= 10 * 60),
                   ),
                 ),
               ],
@@ -142,24 +197,21 @@ class AnalysePage extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _StatTile(
-                    icon: Icons.wb_sunny_rounded,
-                    color: AppTheme.accentCyan,
-                    value: avgFirstLabel,
-                    label: 'Lever moyen',
-                    sub: 'première activité du matin',
-                    good: avgFirstGood,
+                    icon: Icons.directions_walk_rounded,
+                    color: AppTheme.activityPurple,
+                    value: avgOutingLabel,
+                    label: 'Durée sortie moy.',
+                    good: true,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _StatTile(
-                    icon: Icons.do_not_disturb_on_rounded,
+                    icon: Icons.warning_amber_rounded,
                     color: AppTheme.activityRed,
-                    value: '$inactiveDays',
-                    label: 'Jours sans activité',
-                    sub: 'aucun capteur déclenché',
-                    good: inactiveDays == 0,
-                    goodIsZero: true,
+                    value: '$periodAnomalies',
+                    label: 'Anomalies',
+                    good: periodAnomalies == 0,
                   ),
                 ),
               ],
@@ -169,7 +221,76 @@ class AnalysePage extends ConsumerWidget {
       ),
     );
   }
+
+  String _minuteToLabel(double? minutes) {
+    if (minutes == null) return '--';
+    final h = (minutes ~/ 60) % 24;
+    final m = (minutes % 60).round();
+    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
+  }
 }
+
+// ── Period selector ───────────────────────────────────────────────────────────
+
+class _PeriodSelector extends StatelessWidget {
+  final _Period selected;
+  final ValueChanged<_Period> onChanged;
+
+  const _PeriodSelector({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    const periods = [
+      (_Period.day, 'Jour'),
+      (_Period.week, 'Semaine'),
+      (_Period.month, 'Mois'),
+      (_Period.year, 'Année'),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.darkBgLight,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: periods.map((entry) {
+          final (period, label) = entry;
+          final isSelected = selected == period;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(period),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.accentBlue : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Colors.white
+                        : AppTheme.textSecondary,
+                    fontWeight: isSelected
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+// ── Section label ─────────────────────────────────────────────────────────────
 
 class _SectionLabel extends StatelessWidget {
   final String text;
@@ -189,25 +310,21 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Tuile stat ───────────────────────────────────────────────────────────────
+// ── Stat tile ─────────────────────────────────────────────────────────────────
 
 class _StatTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String value;
   final String label;
-  final String sub;
   final bool good;
-  final bool goodIsZero;
 
   const _StatTile({
     required this.icon,
     required this.color,
     required this.value,
     required this.label,
-    required this.sub,
     required this.good,
-    this.goodIsZero = false,
   });
 
   @override
@@ -246,7 +363,7 @@ class _StatTile extends StatelessWidget {
               height: 1,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             label,
             style: TextStyle(
@@ -255,17 +372,8 @@ class _StatTile extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            sub,
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 12,
-            ),
-          ),
         ],
       ),
     );
   }
 }
-
