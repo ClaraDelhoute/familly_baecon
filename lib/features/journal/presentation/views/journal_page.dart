@@ -114,6 +114,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                               picked.month,
                               picked.day,
                             );
+                            _calendarMode = null;
                           });
                         },
                       )
