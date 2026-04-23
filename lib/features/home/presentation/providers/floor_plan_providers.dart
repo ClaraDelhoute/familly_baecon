@@ -139,6 +139,12 @@ final sensorsProvider = Provider<List<Sensor>>((ref) {
       position: _metersToOffset(4.0, 1.2),
       isMotionDetector: false,
     ),
+    Sensor(
+      id: 'D005',
+      label: 'D005',
+      position: _metersToOffset(4.375, 1.2),
+      isMotionDetector: false,
+    ),
   ];
 });
 

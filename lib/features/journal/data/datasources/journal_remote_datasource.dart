@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/journal/data/models/daily_activity_model.dart';
@@ -52,33 +54,22 @@ class JournalRemoteDataSource {
     return items;
   }
 
-  Future<List<SensorEventModel>> fetchSensorEvents({int limit = 50}) async {
-    print('[REST] GET /api/sensor-events?limit=$limit');
-    final response = await _dio
-        .get('/api/sensor-events', queryParameters: {'limit': limit})
-        .catchError((error) {
-          if (error is DioException && error.response?.statusCode == 404) {
-            print('[REST] /api/sensor-events unavailable (404), skipping');
-            return Response(
-              requestOptions: error.requestOptions,
-              data: const <dynamic>[],
-              statusCode: 200,
-            );
-          }
-          throw error;
-        });
+  Future<List<SensorEventModel>> fetchSensorEvents({int? days, int limit = 100}) async {
+    print('[REST] GET /api/sensor-events');
+    final response = await _dio.get(
+      '/api/sensor-events',
+      queryParameters: {
+        'limit': limit,
+        if (days != null) 'days': days,
+      },
+    );
     final payload = response.data;
     if (payload is! List) {
-      print(
-        '[REST] /api/sensor-events invalid payload type=${payload.runtimeType}',
-      );
+      print('[REST] /api/sensor-events invalid payload type=${payload.runtimeType}');
       return const <SensorEventModel>[];
     }
     final items = payload
-        .map(
-          (item) =>
-              SensorEventModel.fromJson(Map<String, dynamic>.from(item as Map)),
-        )
+        .map((item) => SensorEventModel.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
     print('[REST] /api/sensor-events rows=${items.length}');
     return items;

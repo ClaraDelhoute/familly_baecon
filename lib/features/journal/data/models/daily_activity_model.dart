@@ -54,7 +54,10 @@ class DailyActivityModel {
     final minute = int.tryParse(parts[1]);
     final second = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
     if (hour == null || minute == null) return null;
-    return DateTime(date.year, date.month, date.day, hour, minute, second);
+    // Le backend envoie date + time en heure locale du serveur (pas UTC),
+    // donc on construit directement un DateTime local sans conversion.
+    final localDate = date.toLocal();
+    return DateTime(localDate.year, localDate.month, localDate.day, hour, minute, second);
   }
 
   static int? _durationMin(DateTime start, DateTime? end) {

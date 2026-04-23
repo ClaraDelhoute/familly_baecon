@@ -12,7 +12,9 @@ import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
+import 'package:familly_baecon/core/utils/activity_labels.dart';
 import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
+import 'package:familly_baecon/features/journal/data/models/sensor_event_model.dart';
 
 import '../../domain/entities/activity.dart';
 
@@ -316,6 +318,14 @@ class HomePage extends ConsumerWidget {
       });
     });
 
+    final sensorEvents =
+        ref.watch(liveSensorEventsProvider).valueOrNull ?? const [];
+    final latestSensorEvent = sensorEvents.isEmpty
+        ? null
+        : sensorEvents.reduce(
+            (a, b) => a.timestamp.isAfter(b.timestamp) ? a : b,
+          );
+
     final observedForLastActivity = observedFromBackend.isNotEmpty
         ? observedFromBackend
         : observed;
@@ -329,9 +339,30 @@ class HomePage extends ConsumerWidget {
       ActivityStatus.warning => const Color(0xFFEF4444),
       ActivityStatus.critical => const Color(0xFFEF4444),
     };
+    // Trouve le jour le plus récent dans les données (suit la simulation,
+    // pas DateTime.now() qui peut diverger de la date simulée).
     final lastActivity = observedForLastActivity.isEmpty
         ? null
         : observedForLastActivity.reduce(
+            (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
+          );
+    final latestDay = lastActivity == null
+        ? null
+        : lastActivity.startAt.toLocal();
+    final latestDayStart = latestDay == null
+        ? null
+        : DateTime(latestDay.year, latestDay.month, latestDay.day);
+    final latestDayActivities = latestDayStart == null
+        ? <Activity>[]
+        : observedForLastActivity.where((a) {
+            final d = a.startAt.toLocal();
+            return d.year == latestDayStart.year &&
+                d.month == latestDayStart.month &&
+                d.day == latestDayStart.day;
+          }).toList();
+    final lastActivityOfLatestDay = latestDayActivities.isEmpty
+        ? null
+        : latestDayActivities.reduce(
             (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
           );
 
@@ -354,12 +385,6 @@ class HomePage extends ConsumerWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final isWide = constraints.maxWidth >= 700;
-          final latestLocation = observedForLastActivity.isEmpty
-              ? null
-              : observedForLastActivity.reduce(
-                  (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
-                );
-
           final avatarSize = isWide ? 96.0 : 72.0;
           final profileImagePath = ref.watch(profileImagePathProvider);
           final avatar = Container(
@@ -416,7 +441,7 @@ class HomePage extends ConsumerWidget {
                   icon: Icons.history_rounded,
                   iconColor: AppTheme.accentBlue,
                   label: 'Dernière activité',
-                  value: _formatLastActivityValue(lastActivity),
+                  value: _formatLastActivityValue(lastActivityOfLatestDay),
                 ),
                 Divider(
                   height: 18,
@@ -427,7 +452,7 @@ class HomePage extends ConsumerWidget {
                   icon: Icons.place_outlined,
                   iconColor: AppTheme.accentCyan,
                   label: 'Dernière localisation',
-                  value: _formatLatestLocationValue(latestLocation),
+                  value: _formatLatestLocationValue(latestSensorEvent),
                 ),
               ],
             ),
@@ -1020,19 +1045,17 @@ class HomePage extends ConsumerWidget {
 
   String _formatLastActivityValue(Activity? activity) {
     if (activity == null) return '—';
-    final typeFormatted = activity.type.isEmpty
-        ? 'Activité'
-        : '${activity.type[0].toUpperCase()}${activity.type.substring(1)}';
+    final local = activity.startAt.toLocal();
     final time =
-        '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
-    return '$typeFormatted • $time';
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    return '${activityTypeLabel(activity.type)} • $time';
   }
 
-  String _formatLatestLocationValue(Activity? activity) {
-    if (activity == null) return 'Inconnue';
+  String _formatLatestLocationValue(SensorEventModel? event) {
+    if (event == null) return 'Inconnue';
     final time =
-        '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}';
-    return '${activity.room ?? 'Inconnue'} • $time';
+        '${event.timestamp.toLocal().hour.toString().padLeft(2, '0')}:${event.timestamp.toLocal().minute.toString().padLeft(2, '0')}';
+    return '${roomLabel(event.room)} • $time';
   }
 }
 

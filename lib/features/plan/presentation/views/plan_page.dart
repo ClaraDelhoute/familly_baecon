@@ -5,6 +5,7 @@ import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/core/utils/orientation_lock.dart';
 import 'package:familly_baecon/features/home/presentation/providers/floor_plan_providers.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
+import 'package:familly_baecon/core/utils/activity_labels.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 
@@ -17,14 +18,9 @@ class PlanPage extends ConsumerWidget {
     final sensors = ref.watch(sensorsProvider);
     final selectedRoom = ref.watch(selectedRoomProvider);
     final activeSensor = ref.watch(activateSensorProvider);
-    final observed =
-        ref.watch(liveObservedActivitiesProvider).valueOrNull ?? const [];
     final sensorEvents =
         ref.watch(liveSensorEventsProvider).valueOrNull ?? const [];
 
-    final latest = observed.isEmpty
-        ? null
-        : observed.reduce((a, b) => a.startAt.isAfter(b.startAt) ? a : b);
     final latestEvent = sensorEvents.isEmpty
         ? null
         : sensorEvents.reduce(
@@ -75,9 +71,9 @@ class PlanPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              latest == null
+              latestEvent == null
                   ? 'Dernière localisation: inconnue'
-                  : 'Dernière localisation: ${latest.room ?? 'Inconnue'} • ${_formatHm(latest.startAt)}',
+                  : 'Dernière localisation: ${roomLabel(latestEvent.room)} • ${_formatHm(latestEvent.timestamp)}',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -147,13 +143,15 @@ class PlanPage extends ConsumerWidget {
     final candidatesByRoom = <String, List<String>>{
       'cuisine': ['M001', 'M002'],
       'salon': ['M003', 'M004', 'M005'],
+      'outside': ['D001'],
       'chambre': ['M006', 'M007'],
-      'db': ['M008', 'M009', 'D006'],
-      'bain': ['M008', 'M009', 'D006'],
-      'bathroom': ['M008', 'M009', 'D006'],
-      'wc': ['M010'],
-      'toilet': ['M010'],
-      'toilettes': ['M010'],
+      'salle_de_bain': ['M008', 'M009', 'D004'],
+      'sdb': ['M008', 'M009', 'D004'],
+      'bain': ['M008', 'M009', 'D004'],
+      'bathroom': ['M008', 'M009', 'D004'],
+      'toilettes': ['M010', 'D005'],
+      'wc': ['M010', 'D005'],
+      'toilet': ['M010', 'D005'],
     };
 
     for (final entry in candidatesByRoom.entries) {

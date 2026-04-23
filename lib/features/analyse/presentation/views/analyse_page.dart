@@ -40,48 +40,76 @@ class _AnalysePageState extends ConsumerState<AnalysePage> {
         ref.watch(liveAnomaliesProvider).valueOrNull ?? const [];
 
     final now = DateTime.now();
-    final periodStart = now.subtract(Duration(days: _maxDays));
+
+    // Heure simulée courante : simulatedAt le plus récent parmi les anomalies
+    // du jour. Permet d'exclure les activités qui n'ont pas encore eu lieu.
+    final todayAnomalies = anomalies.where((a) {
+      final d = a.simulatedAt.toLocal();
+      return d.year == now.year && d.month == now.month && d.day == now.day;
+    }).toList();
+    final simulatedNow = todayAnomalies.isEmpty
+        ? now
+        : todayAnomalies
+            .map((a) => a.simulatedAt)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
+
+    final periodStart = simulatedNow.subtract(Duration(days: _maxDays));
+
+    // Activités passées uniquement (startAt <= heure simulée courante)
+    final pastObserved = observed
+        .where((a) => !a.startAt.isAfter(simulatedNow))
+        .toList();
 
     final dailyStats =
-        BehaviorStatsService.buildDailyStats(observed, maxDays: _maxDays);
+        BehaviorStatsService.buildDailyStats(pastObserved, maxDays: _maxDays);
 
     final periodAnomalies =
         anomalies.where((a) => a.lastSeenAt.isAfter(periodStart)).length;
 
-    // Nombre de repas
-    final mealsCount = dailyStats.fold(0, (s, d) => s + d.mealsCount);
-
-    // Sommeil moyen (h)
-    final avgSleepH = dailyStats.isEmpty
-        ? 0.0
-        : dailyStats.fold(0, (s, d) => s + d.sleepMinutes) /
-            dailyStats.length /
-            60;
-
-    // Heure de coucher : dernière activité sleep de chaque jour → startAt
-    final periodActivities = observed
+    final periodActivities = pastObserved
         .where((a) => a.startAt.isAfter(periodStart))
         .toList();
+
+    final isDay = _period == _Period.day;
+
+    // Nombre de repas — brut pour le jour, cumulé sinon
+    final mealsCount = isDay
+        ? (dailyStats.isEmpty ? 0 : dailyStats.last.mealsCount)
+        : dailyStats.fold(0, (s, d) => s + d.mealsCount);
+
+    // Sommeil — durée brute pour le jour, moyenne sinon
+    final sleepH = isDay
+        ? (dailyStats.isEmpty ? 0.0 : dailyStats.last.sleepMinutes / 60)
+        : (dailyStats.isEmpty
+            ? 0.0
+            : dailyStats.fold(0, (s, d) => s + d.sleepMinutes) /
+                dailyStats.length /
+                60);
+    final sleepLabel = isDay
+        ? '${sleepH.toStringAsFixed(1)}h'
+        : '${sleepH.toStringAsFixed(1)}h moy.';
+    final sleepGood = sleepH >= 6;
 
     final sleepActivities =
         periodActivities.where((a) => a.type == 'sleep').toList();
 
     // Coucher : heure de début du sleep
     final bedtimeMinutes = sleepActivities
-        .map((a) => a.startAt.hour * 60 + a.startAt.minute)
+        .map((a) => a.startAt.toLocal().hour * 60 + a.startAt.toLocal().minute)
         .toList();
     final avgBedtimeMinute = bedtimeMinutes.isEmpty
         ? null
         : bedtimeMinutes.reduce((a, b) => a + b) / bedtimeMinutes.length;
     final avgBedtimeLabel = _minuteToLabel(avgBedtimeMinute);
 
-    // Réveil : heure de fin du sleep (endAt) ou startAt + durationMin
+    // Réveil : heure de fin du sleep
     final wakeMinutes = sleepActivities
         .map((a) {
           if (a.endAt != null) {
-            return a.endAt!.hour * 60 + a.endAt!.minute;
+            final e = a.endAt!.toLocal();
+            return e.hour * 60 + e.minute;
           } else if (a.durationMin != null) {
-            final end = a.startAt.add(Duration(minutes: a.durationMin!));
+            final end = a.startAt.add(Duration(minutes: a.durationMin!)).toLocal();
             return end.hour * 60 + end.minute;
           }
           return null;
@@ -93,22 +121,21 @@ class _AnalysePageState extends ConsumerState<AnalysePage> {
         : wakeMinutes.reduce((a, b) => a + b) / wakeMinutes.length;
     final avgWakeLabel = _minuteToLabel(avgWakeMinute);
 
-    // Durée moyenne d'une sortie
+    // Durée sortie — brute pour le jour, moyenne sinon
     final outingActivities =
         periodActivities.where((a) => a.type == 'sortie').toList();
     final outingDurations = outingActivities
         .map((a) {
           if (a.durationMin != null) return a.durationMin!;
-          if (a.endAt != null) {
-            return a.endAt!.difference(a.startAt).inMinutes;
-          }
+          if (a.endAt != null) return a.endAt!.difference(a.startAt).inMinutes;
           return null;
         })
         .whereType<int>()
         .toList();
     final avgOutingMin = outingDurations.isEmpty
         ? null
-        : outingDurations.reduce((a, b) => a + b) / outingDurations.length;
+        : outingDurations.reduce((a, b) => a + b) /
+            (isDay ? 1 : outingDurations.length);
     final avgOutingLabel = avgOutingMin == null
         ? '--'
         : avgOutingMin >= 60
@@ -158,9 +185,9 @@ class _AnalysePageState extends ConsumerState<AnalysePage> {
                   child: _StatTile(
                     icon: Icons.bedtime_rounded,
                     color: AppTheme.activityGreen,
-                    value: '${avgSleepH.toStringAsFixed(1)}h',
-                    label: 'Sommeil moyen',
-                    good: avgSleepH >= 6,
+                    value: sleepLabel,
+                    label: isDay ? 'Sommeil' : 'Sommeil moyen',
+                    good: sleepGood,
                   ),
                 ),
               ],
