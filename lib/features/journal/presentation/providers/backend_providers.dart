@@ -72,6 +72,7 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
   final settings = ref.read(_settingsServiceProvider);
   Timer? timer;
   var disposed = false;
+  var lastData = const <Activity>[];
 
   Future<void> load() async {
     if (disposed) return;
@@ -80,7 +81,7 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
       if (disposed) return;
       if (inAbsence) {
         print('[APP] skipping activities fetch due to active absence period');
-        controller.add(const <Activity>[]);
+        controller.add(lastData);
         return;
       }
 
@@ -93,16 +94,17 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
         ..sort((a, b) => a.startAt.compareTo(b.startAt));
       ref.read(backendApiConnectedProvider.notifier).state = true;
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
-      controller.add(mapped);
+      lastData = mapped;
+      controller.add(lastData);
     } catch (error, stack) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] observed activities fallback empty (network error): ${error.message}');
+        print('[APP] observed activities keeping last data (network error): ${error.message}');
         ref.read(backendApiConnectedProvider.notifier).state = false;
-        controller.add(const <Activity>[]);
+        controller.add(lastData);
       } else {
         print('[APP] observed activities stream error=$error');
-        controller.addError(error, stack);
+        controller.add(lastData);
       }
     }
   }
@@ -126,6 +128,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
   final mqttService = ref.watch(_mqttServiceProvider);
   final settings = ref.read(_settingsServiceProvider);
   var mqttAlerts = <AlertItem>[];
+  var lastData = <AlertItem>[];
   Timer? timer;
   StreamSubscription<AlertItem>? mqttSubscription;
   var disposed = false;
@@ -137,7 +140,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       if (disposed) return;
       if (inAbsence) {
         print('[APP] skipping notifications fetch due to active absence period');
-        controller.add(_deduplicateAlerts(mqttAlerts));
+        controller.add(_deduplicateAlerts(mqttAlerts).isEmpty ? lastData : _deduplicateAlerts(mqttAlerts));
         return;
       }
 
@@ -152,17 +155,17 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       print('[APP] alerts pushed=${deduplicated.length} (rest=${notifications.length}, mqtt=${mqttAlerts.length})');
       ref.read(backendApiConnectedProvider.notifier).state = true;
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
-      controller.add(deduplicated);
-    } catch (error, stack) {
+      lastData = deduplicated;
+      controller.add(lastData);
+    } catch (error) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] alerts fallback empty (network error): ${error.message}');
+        print('[APP] alerts keeping last data (network error): ${error.message}');
         ref.read(backendApiConnectedProvider.notifier).state = false;
-        controller.add(_deduplicateAlerts(mqttAlerts));
       } else {
         print('[APP] alerts stream error=$error');
-        controller.addError(error, stack);
       }
+      controller.add(lastData);
     }
   }
 
@@ -208,21 +211,23 @@ final liveSensorEventsProvider = StreamProvider<List<SensorEventModel>>((ref) {
   final controller = StreamController<List<SensorEventModel>>();
   Timer? timer;
   var disposed = false;
+  var lastData = const <SensorEventModel>[];
 
   Future<void> load() async {
     if (disposed) return;
     try {
       final events = await datasource.fetchSensorEvents(days: 1, limit: 500);
       if (disposed) return;
-      controller.add(events);
+      lastData = events;
+      controller.add(lastData);
     } catch (error) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] sensor events fallback empty (network error): ${error.message}');
-        controller.add(const <SensorEventModel>[]);
+        print('[APP] sensor events keeping last data (network error): ${error.message}');
       } else {
         print('[APP] sensor events error=$error');
       }
+      controller.add(lastData);
     }
   }
 
@@ -242,21 +247,22 @@ final liveAnomaliesProvider = StreamProvider<List<AnomalyHistoryModel>>((ref) {
   final controller = StreamController<List<AnomalyHistoryModel>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   Timer? timer;
+  var lastData = const <AnomalyHistoryModel>[];
 
   Future<void> load() async {
     try {
       final anomalies = await datasource.fetchAnomalies(limit: 100);
       anomalies.sort((a, b) => b.lastSeenAt.compareTo(a.lastSeenAt));
       print('[APP] anomalies pushed=${anomalies.length}');
-      controller.add(anomalies);
-    } catch (error, stack) {
+      lastData = anomalies;
+      controller.add(lastData);
+    } catch (error) {
       if (error is DioException) {
-        print('[APP] anomalies fallback empty (network error): ${error.message}');
-        controller.add(const <AnomalyHistoryModel>[]);
+        print('[APP] anomalies keeping last data (network error): ${error.message}');
       } else {
         print('[APP] anomalies stream error=$error');
-        controller.addError(error, stack);
       }
+      controller.add(lastData);
     }
   }
 

@@ -30,4 +30,9 @@ class AppConfig {
     'FAMILY_BEACON_MQTT_PASSWORD',
     defaultValue: '',
   );
+
+  static const String statsTimezone = String.fromEnvironment(
+    'FAMILY_BEACON_STATS_TIMEZONE',
+    defaultValue: 'Europe/Paris',
+  );
 }
