@@ -14,32 +14,28 @@ extension _PeriodApiValue on _Period {
         _Period.month => 'month',
         _Period.year => 'year',
       };
-}
 
-class AnalysePage extends ConsumerStatefulWidget {
-  final Function(int)? onNavigate;
-  const AnalysePage({super.key, this.onNavigate});
-
-  @override
-  ConsumerState<AnalysePage> createState() => _AnalysePageState();
-}
-
-class _AnalysePageState extends ConsumerState<AnalysePage> {
-  _Period _period = _Period.week;
-
-  String get _periodLabel => switch (_period) {
-        _Period.day => 'Aujourd\'hui',
+  String get sectionLabel => switch (this) {
+        _Period.day => "Aujourd'hui",
         _Period.week => 'Cette semaine',
         _Period.month => 'Ce mois',
         _Period.year => 'Cette année',
       };
+}
+
+final _analysePeriodProvider = StateProvider<_Period>((ref) => _Period.week);
+
+class AnalysePage extends ConsumerWidget {
+  final Function(int)? onNavigate;
+  const AnalysePage({super.key, this.onNavigate});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final period = ref.watch(_analysePeriodProvider);
     final now = DateTime.now();
     final referenceDate = DateTime(now.year, now.month, now.day);
     final query = StatsSummaryQuery(
-      period: _period.apiValue,
+      period: period.apiValue,
       date: referenceDate,
     );
     final statsAsync = ref.watch(statsSummaryProvider(query));
@@ -65,14 +61,28 @@ class _AnalysePageState extends ConsumerState<AnalysePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _PeriodSelector(
-              selected: _period,
-              onChanged: (p) => setState(() => _period = p),
+              selected: period,
+              onChanged: (p) =>
+                  ref.read(_analysePeriodProvider.notifier).state = p,
             ),
             const SizedBox(height: 20),
-            _SectionLabel(_periodLabel),
+            _SectionLabel(period.sectionLabel),
             const SizedBox(height: 12),
             statsAsync.when(
-              data: _buildStatsContent,
+              data: (result) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (result.fromCache) ...[
+                    _OfflineBanner(
+                      cachedAt: result.cachedAt,
+                      onRetry: () =>
+                          ref.invalidate(statsSummaryProvider(query)),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _buildStatsContent(result.summary, period),
+                ],
+              ),
               loading: () => const _StatsLoading(),
               error: (error, _) => _StatsErrorCard(
                 onRetry: () => ref.invalidate(statsSummaryProvider(query)),
@@ -83,14 +93,15 @@ class _AnalysePageState extends ConsumerState<AnalysePage> {
       ),
     );
   }
+}
 
-  Widget _buildStatsContent(StatsSummaryModel stats) {
-    final isDay = _period == _Period.day;
-    final sleepMinutes = isDay ? stats.sleepMinutes : stats.avgSleepMinutes;
-    final sleepH = sleepMinutes / 60;
-    final sleepLabel = isDay
-        ? '${sleepH.toStringAsFixed(1)}h'
-        : '${sleepH.toStringAsFixed(1)}h moy.';
+Widget _buildStatsContent(StatsSummaryModel stats, _Period period) {
+  final isDay = period == _Period.day;
+  final sleepMinutes = isDay ? stats.sleepMinutes : stats.avgSleepMinutes;
+  final sleepH = sleepMinutes / 60;
+  final sleepLabel = isDay
+      ? '${sleepH.toStringAsFixed(1)}h'
+      : '${sleepH.toStringAsFixed(1)}h moy.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,18 +185,17 @@ class _AnalysePageState extends ConsumerState<AnalysePage> {
     );
   }
 
-  String _minuteToLabel(num? minutes) {
-    if (minutes == null) return '--';
-    final h = (minutes ~/ 60) % 24;
-    final m = (minutes % 60).round();
-    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
-  }
+String _minuteToLabel(num? minutes) {
+  if (minutes == null) return '--';
+  final h = (minutes ~/ 60) % 24;
+  final m = (minutes % 60).round();
+  return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
+}
 
-  String _durationLabel(int? minutes) {
-    if (minutes == null) return '--';
-    if (minutes >= 60) return '${(minutes / 60).toStringAsFixed(1)}h';
-    return '${minutes}min';
-  }
+String _durationLabel(int? minutes) {
+  if (minutes == null) return '--';
+  if (minutes >= 60) return '${(minutes / 60).toStringAsFixed(1)}h';
+  return '${minutes}min';
 }
 
 class _PeriodSelector extends StatelessWidget {
@@ -335,6 +345,82 @@ class _StatsLoading extends StatelessWidget {
     return const SizedBox(
       height: 180,
       child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}
+
+class _OfflineBanner extends StatelessWidget {
+  final DateTime? cachedAt;
+  final VoidCallback onRetry;
+
+  const _OfflineBanner({required this.cachedAt, required this.onRetry});
+
+  String _formatCachedAt(DateTime date) {
+    final local = date.toLocal();
+    final now = DateTime.now();
+    final sameDay = local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day;
+    final hh = local.hour.toString().padLeft(2, '0');
+    final mm = local.minute.toString().padLeft(2, '0');
+    if (sameDay) return "aujourd'hui à ${hh}h$mm";
+    final dd = local.day.toString().padLeft(2, '0');
+    final mo = local.month.toString().padLeft(2, '0');
+    return 'le $dd/$mo à ${hh}h$mm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = cachedAt == null
+        ? 'Affichage des dernières données enregistrées.'
+        : 'Dernière mise à jour ${_formatCachedAt(cachedAt!)}.';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.darkBgLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppTheme.accentCyan.withValues(alpha: 0.35),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_rounded, color: AppTheme.accentCyan, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mode hors ligne',
+                  style: TextStyle(
+                    color: AppTheme.textPrimary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Réessayer',
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
     );
   }
 }

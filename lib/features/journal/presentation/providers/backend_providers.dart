@@ -275,9 +275,51 @@ final liveAnomaliesProvider = StreamProvider<List<AnomalyHistoryModel>>((ref) {
   return controller.stream;
 });
 
-final liveRoutineProvider = FutureProvider<List<RoutineActivityModel>>((ref) async {
+final liveRoutineProvider =
+    StreamProvider<List<RoutineActivityModel>>((ref) {
+  ref.watch(backendSyncCounterProvider);
+  final controller = StreamController<List<RoutineActivityModel>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
-  return datasource.fetchRoutine();
+  Timer? timer;
+  var disposed = false;
+  var lastData = const <RoutineActivityModel>[];
+  // Polling plus long que les activités : la routine se calcule rarement
+  // et le backend a un délai d'initialisation (~20s au démarrage).
+  const pollInterval = Duration(seconds: 20);
+
+  Future<void> load() async {
+    if (disposed) return;
+    try {
+      final routine = await datasource.fetchRoutine();
+      if (disposed) return;
+      // Ne pas écraser une routine non vide par [] (bref trou côté backend).
+      if (routine.isEmpty && lastData.isNotEmpty) {
+        controller.add(lastData);
+        return;
+      }
+      lastData = routine;
+      controller.add(lastData);
+    } catch (error) {
+      if (disposed) return;
+      if (error is DioException) {
+        print('[APP] routine keeping last data (network error): ${error.message}');
+      } else {
+        print('[APP] routine stream error=$error');
+      }
+      controller.add(lastData);
+    }
+  }
+
+  unawaited(load());
+  timer = Timer.periodic(pollInterval, (_) => unawaited(load()));
+
+  ref.onDispose(() async {
+    disposed = true;
+    timer?.cancel();
+    await controller.close();
+  });
+
+  return controller.stream;
 });
 
 AlertItem _notificationToAlert(NotificationModel notification) {

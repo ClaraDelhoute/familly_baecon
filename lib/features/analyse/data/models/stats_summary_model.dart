@@ -52,6 +52,23 @@ class StatsSummaryModel {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'period': period,
+        'period_start': periodStart.toIso8601String(),
+        'period_end': periodEnd.toIso8601String(),
+        'as_of': asOf.toIso8601String(),
+        'generated_at': generatedAt.toIso8601String(),
+        'expires_at': expiresAt.toIso8601String(),
+        'meals_count': mealsCount,
+        'sleep_minutes': sleepMinutes,
+        'avg_sleep_minutes': avgSleepMinutes,
+        'avg_bedtime_minute': avgBedtimeMinute,
+        'avg_wake_minute': avgWakeMinute,
+        'avg_outing_minutes': avgOutingMinutes,
+        'anomalies_count': anomaliesCount,
+        'daily': daily.map((d) => d.toJson()).toList(),
+      };
 }
 
 class DailyStatsModel {
@@ -87,6 +104,17 @@ class DailyStatsModel {
       totalActivities: _readInt(json, 'total_activities'),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'date': date.toIso8601String(),
+        'meals_count': mealsCount,
+        'sleep_minutes': sleepMinutes,
+        'bedtime_minute': bedtimeMinute,
+        'wake_minute': wakeMinute,
+        'outing_minutes': outingMinutes,
+        'anomalies_count': anomaliesCount,
+        'total_activities': totalActivities,
+      };
 }
 
 int _readInt(Map<String, dynamic> json, String key) {
