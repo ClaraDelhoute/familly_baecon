@@ -1,5 +1,3 @@
-// ignore_for_file: avoid_print
-
 import 'dart:async';
 import 'dart:math';
 
@@ -23,7 +21,7 @@ final backendMqttConnectedProvider = StateProvider<bool>((ref) => false);
 final backendLastSyncAtProvider = StateProvider<DateTime?>((ref) => null);
 final backendSyncCounterProvider = StateProvider<int>((ref) => 0);
 
-final _dioProvider = Provider((ref) => DioProvider.create());
+final _dioProvider = Provider((ref) => DioProvider.instance);
 final _journalRemoteDataSourceProvider = Provider((ref) {
   return JournalRemoteDataSource(ref.watch(_dioProvider));
 });
@@ -44,10 +42,7 @@ final forceBackendSyncProvider = Provider<Future<void> Function()>((ref) {
 
   return () async {
     final inAbsence = await settings.isInAbsence();
-    if (inAbsence) {
-      print('[APP] skipping backend sync due to active absence period');
-      return;
-    }
+    if (inAbsence) return;
 
     try {
       await datasource.fetchActivities();
@@ -55,11 +50,6 @@ final forceBackendSyncProvider = Provider<Future<void> Function()>((ref) {
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
     } catch (error) {
       ref.read(backendApiConnectedProvider.notifier).state = false;
-      if (error is DioException) {
-        print('[APP] backend sync failed (network error): ${error.message}');
-      } else {
-        print('[APP] backend sync error=$error');
-      }
       rethrow;
     }
   };
@@ -80,13 +70,12 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
       final inAbsence = await settings.isInAbsence();
       if (disposed) return;
       if (inAbsence) {
-        print('[APP] skipping activities fetch due to active absence period');
         controller.add(lastData);
         return;
       }
 
       final now = DateTime.now();
-      final activities = await datasource.fetchActivities();
+      final activities = await datasource.fetchActivities(sinceHours: 48);
       if (disposed) return;
       final mapped = activities
           .map((activity) => activity.toDomain(fallbackDate: now))
@@ -96,21 +85,17 @@ final liveObservedActivitiesProvider = StreamProvider<List<Activity>>((ref) {
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
       lastData = mapped;
       controller.add(lastData);
-    } catch (error, stack) {
+    } catch (error) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] observed activities keeping last data (network error): ${error.message}');
         ref.read(backendApiConnectedProvider.notifier).state = false;
-        controller.add(lastData);
-      } else {
-        print('[APP] observed activities stream error=$error');
-        controller.add(lastData);
       }
+      controller.add(lastData);
     }
   }
 
   unawaited(load());
-  timer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(load()));
+  timer = Timer.periodic(const Duration(seconds: 45), (_) => unawaited(load()));
 
   ref.onDispose(() async {
     disposed = true;
@@ -130,6 +115,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
   var mqttAlerts = <AlertItem>[];
   var lastData = <AlertItem>[];
   Timer? timer;
+  Timer? mqttDebounce;
   StreamSubscription<AlertItem>? mqttSubscription;
   var disposed = false;
 
@@ -139,12 +125,11 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       final inAbsence = await settings.isInAbsence();
       if (disposed) return;
       if (inAbsence) {
-        print('[APP] skipping notifications fetch due to active absence period');
         controller.add(_deduplicateAlerts(mqttAlerts).isEmpty ? lastData : _deduplicateAlerts(mqttAlerts));
         return;
       }
 
-      final notifications = await datasource.fetchNotifications();
+      final notifications = await datasource.fetchNotifications(limit: 100, sinceHours: 48);
       if (disposed) return;
       final mapped = [
         ...notifications.map(_notificationToAlert),
@@ -152,7 +137,6 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
       final deduplicated = _deduplicateAlerts(mapped)
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      print('[APP] alerts pushed=${deduplicated.length} (rest=${notifications.length}, mqtt=${mqttAlerts.length})');
       ref.read(backendApiConnectedProvider.notifier).state = true;
       ref.read(backendLastSyncAtProvider.notifier).state = DateTime.now();
       lastData = deduplicated;
@@ -160,10 +144,7 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
     } catch (error) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] alerts keeping last data (network error): ${error.message}');
         ref.read(backendApiConnectedProvider.notifier).state = false;
-      } else {
-        print('[APP] alerts stream error=$error');
       }
       controller.add(lastData);
     }
@@ -175,7 +156,6 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       await mqttService.connect();
       if (disposed) return;
       ref.read(backendMqttConnectedProvider.notifier).state = true;
-      print('[APP] MQTT channel connected, waiting alerts...');
       mqttSubscription = mqttService
           .jsonMessages(AppConfig.mqttTopicAlerts)
           .map(MqttAlertModel.fromJson)
@@ -183,20 +163,24 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
           .listen((alert) {
             if (disposed) return;
             mqttAlerts = [alert, ...mqttAlerts].take(100).toList();
-            print('[APP] mqtt alert received id=${alert.id} totalMqtt=${mqttAlerts.length}');
-            ref.read(backendSyncCounterProvider.notifier).state++;
-            unawaited(load());
+            // Debounce: batch rapid MQTT messages into a single reload
+            mqttDebounce?.cancel();
+            mqttDebounce = Timer(const Duration(milliseconds: 500), () {
+              if (disposed) return;
+              ref.read(backendSyncCounterProvider.notifier).state++;
+              unawaited(load());
+            });
           });
     } catch (_) {
       if (disposed) return;
       ref.read(backendMqttConnectedProvider.notifier).state = false;
-      print('[APP] MQTT unavailable, REST polling remains active');
     }
   }());
-  timer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(load()));
+  timer = Timer.periodic(const Duration(seconds: 45), (_) => unawaited(load()));
 
   ref.onDispose(() async {
     disposed = true;
+    mqttDebounce?.cancel();
     await mqttSubscription?.cancel();
     mqttService.disconnect();
     timer?.cancel();
@@ -216,23 +200,21 @@ final liveSensorEventsProvider = StreamProvider<List<SensorEventModel>>((ref) {
   Future<void> load() async {
     if (disposed) return;
     try {
-      final events = await datasource.fetchSensorEvents(days: 1, limit: 500);
+      final events = await datasource.fetchSensorEvents(days: 1, limit: 100);
       if (disposed) return;
       lastData = events;
       controller.add(lastData);
     } catch (error) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] sensor events keeping last data (network error): ${error.message}');
-      } else {
-        print('[APP] sensor events error=$error');
+        ref.read(backendApiConnectedProvider.notifier).state = false;
       }
       controller.add(lastData);
     }
   }
 
   unawaited(load());
-  timer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(load()));
+  timer = Timer.periodic(const Duration(seconds: 60), (_) => unawaited(load()));
 
   ref.onDispose(() async {
     disposed = true;
@@ -247,28 +229,30 @@ final liveAnomaliesProvider = StreamProvider<List<AnomalyHistoryModel>>((ref) {
   final controller = StreamController<List<AnomalyHistoryModel>>();
   final datasource = ref.watch(_journalRemoteDataSourceProvider);
   Timer? timer;
+  var disposed = false;
   var lastData = const <AnomalyHistoryModel>[];
 
   Future<void> load() async {
+    if (disposed) return;
     try {
-      final anomalies = await datasource.fetchAnomalies(limit: 100);
+      final anomalies = await datasource.fetchAnomalies(limit: 50);
+      if (disposed) return;
       anomalies.sort((a, b) => b.lastSeenAt.compareTo(a.lastSeenAt));
-      print('[APP] anomalies pushed=${anomalies.length}');
       lastData = anomalies;
       controller.add(lastData);
     } catch (error) {
+      if (disposed) return;
       if (error is DioException) {
-        print('[APP] anomalies keeping last data (network error): ${error.message}');
-      } else {
-        print('[APP] anomalies stream error=$error');
+        ref.read(backendApiConnectedProvider.notifier).state = false;
       }
       controller.add(lastData);
     }
   }
 
   unawaited(load());
-  timer = Timer.periodic(const Duration(seconds: 10), (_) => unawaited(load()));
+  timer = Timer.periodic(const Duration(seconds: 60), (_) => unawaited(load()));
   ref.onDispose(() async {
+    disposed = true;
     timer?.cancel();
     await controller.close();
   });
@@ -283,9 +267,8 @@ final liveRoutineProvider =
   Timer? timer;
   var disposed = false;
   var lastData = const <RoutineActivityModel>[];
-  // Polling plus long que les activités : la routine se calcule rarement
-  // et le backend a un délai d'initialisation (~20s au démarrage).
-  const pollInterval = Duration(seconds: 20);
+  // Routine calculée rarement côté backend — polling long suffit.
+  const pollInterval = Duration(seconds: 120);
 
   Future<void> load() async {
     if (disposed) return;
@@ -302,9 +285,7 @@ final liveRoutineProvider =
     } catch (error) {
       if (disposed) return;
       if (error is DioException) {
-        print('[APP] routine keeping last data (network error): ${error.message}');
-      } else {
-        print('[APP] routine stream error=$error');
+        ref.read(backendApiConnectedProvider.notifier).state = false;
       }
       controller.add(lastData);
     }

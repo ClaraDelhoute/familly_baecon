@@ -34,9 +34,7 @@ class MqttService {
     try {
       final user = username?.isNotEmpty == true ? username : (AppConfig.mqttUsername.isNotEmpty ? AppConfig.mqttUsername : null);
       final pass = password?.isNotEmpty == true ? password : (AppConfig.mqttPassword.isNotEmpty ? AppConfig.mqttPassword : null);
-      print('[MQTT] connecting to $server:$port as $clientId');
       await _client.connect(user, pass);
-      print('[MQTT] connected');
       _client.updates?.listen((List<MqttReceivedMessage<MqttMessage>>? c) {
         if (c != null) {
           for (final msg in c) {
@@ -45,21 +43,18 @@ class MqttService {
         }
       });
     } catch (e) {
-      print('[MQTT] connection failed: $e');
       disconnect();
       rethrow;
     }
   }
 
   void disconnect() {
-    print('[MQTT] disconnected');
     _client.disconnect();
   }
 
   Stream<MqttReceivedMessage<MqttMessage>> get messages => _controller.stream;
 
   void subscribe(String topic) {
-    print('[MQTT] subscribing topic=$topic qos=1');
     _client.subscribe(topic, MqttQos.atLeastOnce);
   }
 
@@ -74,7 +69,6 @@ class MqttService {
           if (decoded is! Map<String, dynamic>) {
             throw const FormatException('MQTT payload must be a JSON object');
           }
-          print('[MQTT] message topic=$topic payload=$decoded');
           return decoded;
         });
   }

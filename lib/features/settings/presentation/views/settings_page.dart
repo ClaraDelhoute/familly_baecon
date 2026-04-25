@@ -183,6 +183,30 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                try {
+                  await forceSync();
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Mise à jour terminée')),
+                  );
+                } catch (_) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Impossible de mettre à jour'),
+                    ),
+                  );
+                }
+              },
+              icon: Icon(Icons.refresh_rounded, size: iconSize),
+              label: const Text('Reconnexion / mise à jour serveur'),
+            ),
+          ),
           const SizedBox(height: 20),
           Text('Plage d\'absence', style: sectionTitleStyle),
           const SizedBox(height: 8),
@@ -240,30 +264,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   ),
                 ],
               ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                try {
-                  await forceSync();
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Mise à jour terminée')),
-                  );
-                } catch (_) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Impossible de mettre à jour'),
-                    ),
-                  );
-                }
-              },
-              icon: Icon(Icons.refresh_rounded, size: iconSize),
-              label: const Text('Reconnexion / mise à jour serveur'),
             ),
           ),
           const SizedBox(height: 20),

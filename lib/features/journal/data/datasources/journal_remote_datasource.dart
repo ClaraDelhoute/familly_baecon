@@ -12,50 +12,33 @@ class JournalRemoteDataSource {
 
   JournalRemoteDataSource(this._dio);
 
-  Future<List<DailyActivityModel>> fetchActivities() async {
-    print('[REST] GET /api/activities');
-    final response = await _dio.get('/api/activities');
-    final payload = response.data;
-    if (payload is! List) {
-      print(
-        '[REST] /api/activities invalid payload type=${payload.runtimeType}',
-      );
-      return const <DailyActivityModel>[];
+  Future<List<DailyActivityModel>> fetchActivities({int limit = 200, int? sinceHours}) async {
+    final params = <String, dynamic>{'limit': limit};
+    if (sinceHours != null) {
+      params['from'] = DateTime.now().subtract(Duration(hours: sinceHours)).toUtc().toIso8601String();
     }
-    final items = payload
-        .map(
-          (item) => DailyActivityModel.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
-        )
+    final response = await _dio.get('/api/activities', queryParameters: params);
+    final payload = response.data;
+    if (payload is! List) return const <DailyActivityModel>[];
+    return payload
+        .map((item) => DailyActivityModel.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
-    print('[REST] /api/activities rows=${items.length}');
-    return items;
   }
 
-  Future<List<NotificationModel>> fetchNotifications() async {
-    print('[REST] GET /api/notifications');
-    final response = await _dio.get('/api/notifications');
-    final payload = response.data;
-    if (payload is! List) {
-      print(
-        '[REST] /api/notifications invalid payload type=${payload.runtimeType}',
-      );
-      return const <NotificationModel>[];
+  Future<List<NotificationModel>> fetchNotifications({int limit = 100, int? sinceHours}) async {
+    final params = <String, dynamic>{'limit': limit};
+    if (sinceHours != null) {
+      params['from'] = DateTime.now().subtract(Duration(hours: sinceHours)).toUtc().toIso8601String();
     }
-    final items = payload
-        .map(
-          (item) => NotificationModel.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
-        )
+    final response = await _dio.get('/api/notifications', queryParameters: params);
+    final payload = response.data;
+    if (payload is! List) return const <NotificationModel>[];
+    return payload
+        .map((item) => NotificationModel.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
-    print('[REST] /api/notifications rows=${items.length}');
-    return items;
   }
 
   Future<List<SensorEventModel>> fetchSensorEvents({int? days, int limit = 100}) async {
-    print('[REST] GET /api/sensor-events');
     final response = await _dio.get(
       '/api/sensor-events',
       queryParameters: {
@@ -64,43 +47,25 @@ class JournalRemoteDataSource {
       },
     );
     final payload = response.data;
-    if (payload is! List) {
-      print('[REST] /api/sensor-events invalid payload type=${payload.runtimeType}');
-      return const <SensorEventModel>[];
-    }
-    final items = payload
+    if (payload is! List) return const <SensorEventModel>[];
+    return payload
         .map((item) => SensorEventModel.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
-    print('[REST] /api/sensor-events rows=${items.length}');
-    return items;
   }
 
-  Future<List<AnomalyHistoryModel>> fetchAnomalies({int limit = 100}) async {
-    print('[REST] GET /api/anomalies');
+  Future<List<AnomalyHistoryModel>> fetchAnomalies({int limit = 50}) async {
     final response = await _dio.get(
       '/api/anomalies',
       queryParameters: {'limit': limit},
     );
     final payload = response.data;
-    if (payload is! List) {
-      print(
-        '[REST] /api/anomalies invalid payload type=${payload.runtimeType}',
-      );
-      return const <AnomalyHistoryModel>[];
-    }
-    final items = payload
-        .map(
-          (item) => AnomalyHistoryModel.fromJson(
-            Map<String, dynamic>.from(item as Map),
-          ),
-        )
+    if (payload is! List) return const <AnomalyHistoryModel>[];
+    return payload
+        .map((item) => AnomalyHistoryModel.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
-    print('[REST] /api/anomalies rows=${items.length}');
-    return items;
   }
 
   Future<List<RoutineActivityModel>> fetchRoutine() async {
-    print('[REST] GET /api/routine');
     final response = await _dio.get('/api/routine').catchError((error) {
       if (error is DioException && error.response?.statusCode == 404) {
         return Response(
@@ -113,10 +78,8 @@ class JournalRemoteDataSource {
     });
     final payload = response.data;
     if (payload is! List) return const <RoutineActivityModel>[];
-    final items = payload
+    return payload
         .map((item) => RoutineActivityModel.fromJson(Map<String, dynamic>.from(item as Map)))
         .toList();
-    print('[REST] /api/routine rows=${items.length}');
-    return items;
   }
 }

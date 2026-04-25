@@ -2,6 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:familly_baecon/core/config/app_config.dart';
 
 class DioProvider {
+  static Dio? _instance;
+
+  static Dio get instance => _instance ??= create();
+
   static Dio create({String? baseUrl}) {
     final options = BaseOptions(
       baseUrl: baseUrl ?? AppConfig.apiBaseUrl,
@@ -12,9 +16,7 @@ class DioProvider {
       },
     );
 
-    final dio = Dio(options);
-    // Add interceptors, logging, auth here
-    return dio;
+    return Dio(options);
   }
 }
 
