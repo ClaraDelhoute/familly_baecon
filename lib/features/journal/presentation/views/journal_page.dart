@@ -6,6 +6,7 @@ import 'package:familly_baecon/features/journal/data/models/routine_activity_mod
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/journal/presentation/widgets/calendar_timeline.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class JournalPage extends ConsumerStatefulWidget {
   final Function(int)? onNavigate;
@@ -40,7 +41,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
         : '${titleDateFormatter[0].toUpperCase()}${titleDateFormatter.substring(1)}';
 
     return Scaffold(
-      backgroundColor: AppTheme.darkBg,
+      backgroundColor: context.palette.bg,
       appBar: AppBar(
         title: MediaQuery.withClampedTextScaling(
           maxScaleFactor: 1.0,
@@ -94,7 +95,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                 margin: const EdgeInsets.fromLTRB(8, 6, 8, 6),
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AppTheme.darkBgLight.withValues(alpha: 0.55),
+                  color: context.palette.surface.withValues(alpha: 0.55),
                   border: Border.all(
                     color: const Color(0xFFBFC7D1),
                     width: 1.5,
@@ -139,7 +140,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
                       ),
               ),
             Container(
-              color: AppTheme.darkBgLight.withValues(alpha: 0.45),
+              color: context.palette.surface.withValues(alpha: 0.45),
               child: TabBar(
                 tabs: [
                   Tab(text: selectedDayLabel),
@@ -263,7 +264,7 @@ class _RoutineTab extends ConsumerWidget {
       error: (_, __) => Center(
         child: Text(
           'Impossible de charger la routine.',
-          style: TextStyle(color: AppTheme.textSecondary),
+          style: TextStyle(color: context.palette.textSecondary),
         ),
       ),
       data: (items) {
@@ -282,14 +283,14 @@ class _RoutineTab extends ConsumerWidget {
                   Icon(
                     Icons.schedule_rounded,
                     size: 48,
-                    color: AppTheme.textSecondary.withValues(alpha: 0.4),
+                    color: context.palette.textSecondary.withValues(alpha: 0.4),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'La journee type sera construite automatiquement\npar le systeme a partir des donnees observees.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: context.palette.textSecondary,
                       fontSize: 14,
                       height: 1.5,
                     ),

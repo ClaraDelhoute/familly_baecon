@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/profile/presentation/widgets/profile_avatar_widget.dart';
 import 'package:familly_baecon/core/services/settings_service.dart';
 import 'package:familly_baecon/core/models/absence_period.dart';
 
-class ProfilePage extends StatefulWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends ConsumerState<ProfilePage> {
   // États des paramètres
   bool isOnVacation = false;
   bool notificationsEnabled = true;
@@ -22,11 +23,12 @@ class _ProfilePageState extends State<ProfilePage> {
   // Sélection du mode thème
   String selectedTheme = 'auto'; // light, dark, auto
   AbsencePeriod _absence = AbsencePeriod();
-  final _settings = SettingsService();
+  late final SettingsService _settings;
 
   @override
   void initState() {
     super.initState();
+    _settings = ref.read(settingsServiceProvider);
     _loadAbsence();
   }
 

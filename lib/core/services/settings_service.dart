@@ -1,6 +1,9 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/absence_period.dart';
+
+final settingsServiceProvider = Provider<SettingsService>((_) => SettingsService());
 
 class SettingsService {
   static const _profileImageKey = 'profile_image_path';

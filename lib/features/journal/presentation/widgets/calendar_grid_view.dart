@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:familly_baecon/core/domain/activity_type.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class CalendarGridView extends StatefulWidget {
   final List<Activity> expectedActivities;
@@ -19,21 +21,8 @@ class CalendarGridView extends StatefulWidget {
 }
 
 class _CalendarGridViewState extends State<CalendarGridView> {
-  Color _getActivityColor(Activity activity) {
-    if (activity.type.toLowerCase().contains('sleep')) {
-      return AppTheme.activityGreen;
-    }
-    if (activity.type.toLowerCase().contains('toilettes')) {
-      return AppTheme.accentBlue;
-    }
-    if (activity.type.toLowerCase().contains('television')) {
-      return AppTheme.accentCyan;
-    }
-    if (activity.type.toLowerCase().contains('ordinateur')) {
-      return Color(0xFFBB86FC);
-    }
-    return AppTheme.activityPurple;
-  }
+  Color _getActivityColor(Activity activity) =>
+      ActivityType.fromTypeContains(activity.type).color;
 
   String _getActivityLabel(Activity activity) {
     final label = activity.room ?? activity.type;
@@ -56,7 +45,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
           decoration: BoxDecoration(
             border: Border(
               right: BorderSide(
-                color: AppTheme.textSecondary.withValues(alpha: 0.2),
+                color: context.palette.textSecondary.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -73,7 +62,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
                       '${hour.toString().padLeft(2, '0')}:00',
                       style: TextStyle(
                         fontSize: 9,
-                        color: AppTheme.textSecondary.withValues(alpha: 0.6),
+                        color: context.palette.textSecondary.withValues(alpha: 0.6),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -99,7 +88,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textSecondary,
+                            color: context.palette.textSecondary,
                             letterSpacing: 0.5,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -124,7 +113,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
                   ),
                 ),
                 Divider(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                  color: context.palette.textSecondary.withValues(alpha: 0.1),
                   height: 1,
                 ),
                 // Grille
@@ -166,13 +155,13 @@ class _CalendarGridViewState extends State<CalendarGridView> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                    color: context.palette.textSecondary.withValues(alpha: 0.1),
                     width: 0.5,
                   ),
                 ),
                 color: isEvenHour
                     ? Colors.transparent
-                    : AppTheme.darkBg.withValues(alpha: 0.3),
+                    : context.palette.bg.withValues(alpha: 0.3),
               ),
             );
           }),
@@ -229,7 +218,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
                                 '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')}',
                                 style: TextStyle(
                                   fontSize: 7,
-                                  color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                                  color: context.palette.textSecondary.withValues(alpha: 0.7),
                                 ),
                               ),
                             if (height > 35 && activity.durationMin != null)
@@ -237,7 +226,7 @@ class _CalendarGridViewState extends State<CalendarGridView> {
                                 '${activity.durationMin}min',
                                 style: TextStyle(
                                   fontSize: 7,
-                                  color: AppTheme.textSecondary.withValues(alpha: 0.6),
+                                  color: context.palette.textSecondary.withValues(alpha: 0.6),
                                 ),
                               ),
                           ],

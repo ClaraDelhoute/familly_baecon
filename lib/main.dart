@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:familly_baecon/core/utils/orientation_lock.dart';
 import 'package:familly_baecon/core/providers/accessibility_provider.dart';
 import 'package:familly_baecon/core/providers/theme_mode_provider.dart';
@@ -23,7 +24,9 @@ Future<void> main() async {
   await AppBadgeService.initialize();
   runApp(const ProviderScope(child: MyApp()));
   unawaited(AnomalyNotificationService.initialize());
-  unawaited(FcmPushService.initialize());
+  if (!kIsWeb && !kDebugMode) {
+    unawaited(FcmPushService.initialize());
+  }
 }
 
 class MyApp extends ConsumerWidget {

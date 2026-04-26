@@ -6,6 +6,8 @@ import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
+import 'package:familly_baecon/core/domain/activity_type.dart';
+import 'package:familly_baecon/core/domain/anomaly_type.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/core/providers/profile_image_provider.dart';
 import 'package:familly_baecon/core/providers/watched_person_provider.dart';
@@ -17,6 +19,7 @@ import 'package:familly_baecon/features/home/presentation/providers/test_mode_pr
 import 'package:familly_baecon/features/journal/data/models/sensor_event_model.dart';
 
 import '../../domain/entities/activity.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 enum ActivityStatus { ok, warning, critical }
 
@@ -294,7 +297,7 @@ class HomePage extends ConsumerWidget {
         appTypography?.sectionLabel ??
         textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.bold,
-          color: AppTheme.textPrimary,
+          color: context.palette.textPrimary,
           letterSpacing: 0.3,
         );
     // Utiliser les providers de test au lieu des vrais providers
@@ -391,7 +394,7 @@ class HomePage extends ConsumerWidget {
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppTheme.darkBgLight,
+              color: context.palette.surface,
               border: Border.all(
                 color: AppTheme.accentBlue.withValues(alpha: 0.18),
                 width: 2,
@@ -420,16 +423,16 @@ class HomePage extends ConsumerWidget {
             textAlign: TextAlign.center,
             style: textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w700,
-              color: AppTheme.textPrimary,
+              color: context.palette.textPrimary,
             ),
           );
 
           final infoCard = Container(
             decoration: BoxDecoration(
-              color: AppTheme.darkBgLight,
+              color: context.palette.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppTheme.textSecondary.withValues(alpha: 0.12),
+                color: context.palette.textSecondary.withValues(alpha: 0.12),
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -446,7 +449,7 @@ class HomePage extends ConsumerWidget {
                 Divider(
                   height: 18,
                   thickness: 1,
-                  color: AppTheme.textSecondary.withValues(alpha: 0.10),
+                  color: context.palette.textSecondary.withValues(alpha: 0.10),
                 ),
                 _InfoTile(
                   icon: Icons.place_outlined,
@@ -614,15 +617,8 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  Color _getActivityColor(Activity activity) {
-    if (activity.type.toLowerCase().contains('sleep')) {
-      return AppTheme.activityGreen;
-    } else if (activity.type.toLowerCase().contains('toilettes')) {
-      return AppTheme.accentBlue;
-    } else {
-      return AppTheme.accentCyan;
-    }
-  }
+  Color _getActivityColor(Activity activity) =>
+      ActivityType.fromTypeContains(activity.type).color;
 
   /// Construire le résumé du jour avec des stats pertinentes
   Widget _buildDailySummaryStats(List<Activity> observed) {
@@ -633,15 +629,8 @@ class HomePage extends ConsumerWidget {
         ? null
         : observed
               .where((activity) {
-                final type = activity.type.toLowerCase();
-                return !(type.contains('sleep') ||
-                    type.contains('sommeil') ||
-                    type.contains('petit_dejeuner') ||
-                    type.contains('petit-déjeuner') ||
-                    type.contains('dejeuner') ||
-                    type.contains('déjeuner') ||
-                    type.contains('souper') ||
-                    type.contains('repas'));
+                final t = ActivityType.fromTypeContains(activity.type);
+                return !t.isSleep && !t.isMeal;
               })
               .fold<Activity?>(
                 null,
@@ -756,7 +745,7 @@ class HomePage extends ConsumerWidget {
                 constraints: BoxConstraints(maxWidth: maxW),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.darkBgLight,
+                    color: context.palette.surface,
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
@@ -808,7 +797,7 @@ class HomePage extends ConsumerWidget {
                                 _humanizeAlertDescription(alert),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: AppTheme.textPrimary,
+                                  color: context.palette.textPrimary,
                                   fontSize:
                                       textTheme.bodyMedium?.fontSize ?? 14,
                                   height: 1.45,
@@ -883,7 +872,7 @@ class HomePage extends ConsumerWidget {
                                     elevation: 0,
                                   ),
                                   child: const Text(
-                                    'Voir l’anomalie',
+                                    "Voir l'anomalie",
                                     style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 15,
@@ -906,17 +895,8 @@ class HomePage extends ConsumerWidget {
     );
   }
 
-  String _anomalyLabel(String anomalyType) {
-    return switch (anomalyType) {
-      'missing' => 'Activité manquante',
-      'timing' => 'Horaire inhabituel',
-      'duration_short' => 'Activité plus courte que d’habitude',
-      'duration_long' => 'Activité plus longue que d’habitude',
-      'freq_high' => 'Activité trop fréquente',
-      'freq_low' => 'Activité plus rare que d’habitude',
-      _ => 'Comportement inhabituel',
-    };
-  }
+  String _anomalyLabel(String anomalyType) =>
+      AnomalyType.fromKey(anomalyType).label;
 
   String _humanizeAlertDescription(AlertItem alert) {
     final activity = _extractActivityName(alert);
@@ -963,62 +943,14 @@ class HomePage extends ConsumerWidget {
     return paren;
   }
 
-  /// Détecte l'activité concernée (souper, déjeuner, toilettes…) à partir
-  /// du message brut backend ou du titre de l'alerte.
   String? _extractActivityName(AlertItem alert) {
     final source = '${alert.description} ${alert.title}'.toLowerCase();
-    if (source.contains('petit_dejeuner') ||
-        source.contains('petit-déjeuner') ||
-        source.contains('petit déjeuner')) {
-      return 'le petit-déjeuner';
-    }
-    if (source.contains('dejeuner') || source.contains('déjeuner')) {
-      return 'le déjeuner';
-    }
-    if (source.contains('souper') || source.contains('dîner') ||
-        source.contains('diner')) {
-      return 'le souper';
-    }
-    if (source.contains('toilette')) return 'le passage aux toilettes';
-    if (source.contains('sommeil') || source.contains('sleep') ||
-        source.contains('chambre')) {
-      return 'le sommeil';
-    }
-    if (source.contains('télévision') || source.contains('television')) {
-      return 'le moment télévision';
-    }
-    if (source.contains('repas')) return 'le repas';
-    return null;
+    final t = ActivityType.fromTypeContains(source);
+    return t == ActivityType.unknown ? null : t.subject;
   }
 
-  String _phraseFor(String anomalyType, String? activity) {
-    final subject = activity ?? 'l’activité';
-    final cap = '${subject[0].toUpperCase()}${subject.substring(1)}';
-    return switch (anomalyType) {
-      'missing' => '$cap n’a pas été détecté${_eIfNeeded(subject)} aujourd’hui.',
-      'timing' =>
-        '$cap a eu lieu à un horaire inhabituel par rapport à la routine.',
-      'duration_short' =>
-        '$cap a duré nettement moins longtemps que d’habitude.',
-      'duration_long' =>
-        '$cap a duré nettement plus longtemps que d’habitude.',
-      'freq_high' => '$cap est revenu${_eIfNeeded(subject)} plus souvent '
-          'que d’habitude aujourd’hui.',
-      'freq_low' => '$cap a eu lieu moins souvent que d’habitude.',
-      _ => '$cap présente un écart par rapport à la routine habituelle.',
-    };
-  }
-
-  /// Accord simple du participe passé pour les sujets féminins évidents
-  /// ("la sieste", "la promenade"…). Pas exhaustif, mais évite "détecté"
-  /// devant un sujet manifestement féminin.
-  String _eIfNeeded(String subject) {
-    final s = subject.toLowerCase();
-    if (s.startsWith('la ') || s.startsWith('l’') && s.contains('activité')) {
-      return 'e';
-    }
-    return '';
-  }
+  String _phraseFor(String anomalyType, String? activity) =>
+      AnomalyType.fromKey(anomalyType).phraseFor(activity);
 
   /// Calculer le statut d'une activité
   ActivityStatus _statusFor(Activity exp, Activity? obs) {
@@ -1081,7 +1013,7 @@ class _StatCard extends StatelessWidget {
         appTypography?.infoLabel ??
         TextStyle(
           fontSize: 11,
-          color: AppTheme.textSecondary,
+          color: context.palette.textSecondary,
           fontWeight: FontWeight.w500,
         );
     final statValueStyle =
@@ -1092,10 +1024,10 @@ class _StatCard extends StatelessWidget {
       flex: flex,
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.darkBgLight,
+          color: context.palette.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppTheme.textSecondary.withValues(alpha: 0.12),
+            color: context.palette.textSecondary.withValues(alpha: 0.12),
           ),
         ),
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -1113,7 +1045,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               value,
-              style: statValueStyle.copyWith(color: AppTheme.textPrimary),
+              style: statValueStyle.copyWith(color: context.palette.textPrimary),
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1193,7 +1125,7 @@ class _ActivityCard extends StatelessWidget {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: AppTheme.textPrimary,
+                          color: context.palette.textPrimary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -1203,7 +1135,7 @@ class _ActivityCard extends StatelessWidget {
                         '${activity.startAt.hour.toString().padLeft(2, '0')}:${activity.startAt.minute.toString().padLeft(2, '0')} - ${activity.endAt?.hour.toString().padLeft(2, '0') ?? '--'}:${activity.endAt?.minute.toString().padLeft(2, '0') ?? '--'}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.textSecondary,
+                          color: context.palette.textSecondary,
                         ),
                       ),
                     ],
@@ -1274,7 +1206,7 @@ class _InfoTile extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textSecondary,
+                  color: context.palette.textSecondary,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.2,
                 ),
@@ -1284,7 +1216,7 @@ class _InfoTile extends StatelessWidget {
                 value,
                 style: TextStyle(
                   fontSize: 15,
-                  color: AppTheme.textPrimary,
+                  color: context.palette.textPrimary,
                   fontWeight: FontWeight.w700,
                 ),
                 maxLines: 2,

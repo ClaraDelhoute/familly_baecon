@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:familly_baecon/core/domain/activity_type.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class TimelineScheduleView extends StatefulWidget {
   final List<Activity> expectedActivities;
@@ -173,43 +175,13 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
 
   // --- Matching Observé vs Journée type ---
 
-  String _categoryFromLabel(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('sommeil') || l.contains('sleep')) return 'sleep';
-    if (l.contains('douche') || l.contains('toilet')) return 'hygiene';
-    if (l.contains('petit-déjeuner') ||
-        l.contains('déjeuner') ||
-        l.contains('dîner') ||
-        l.contains('repas'))
-      return 'meal';
-    if (l.contains('sortie') || l.contains('déplacement')) return 'out';
-    return 'other';
-  }
+  String _categoryFromLabel(String label) =>
+      ActivityType.fromTypeContains(label).category;
 
   String _categoryFromObserved(Activity activity) {
-    final t = activity.type.toLowerCase();
-    final r = (activity.room ?? '').toLowerCase();
-
-    if (t.contains('sleep') || r.contains('chambre') || r.contains('lit'))
-      return 'sleep';
-    if (t.contains('toilettes') ||
-        t.contains('douche') ||
-        r.contains('salle de bain') ||
-        r.contains('toilet'))
-      return 'hygiene';
-    if (t.contains('cuisine') ||
-        t.contains('repas') ||
-        t.contains('meal') ||
-        r.contains('cuisine') ||
-        r.contains('salle à manger'))
-      return 'meal';
-    if (t.contains('sortie') ||
-        t.contains('outside') ||
-        t.contains('déplacement') ||
-        r.contains('extérieur'))
-      return 'out';
-
-    return 'other';
+    final fromType = ActivityType.fromTypeContains(activity.type);
+    if (fromType != ActivityType.unknown) return fromType.category;
+    return ActivityType.fromRoom(activity.room ?? '').category;
   }
 
   int _observedEndMinutes(Activity activity, int startMinutes) {
@@ -494,7 +466,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                                 border: showObserved
                                     ? Border(
                                         right: BorderSide(
-                                          color: AppTheme.textSecondary
+                                          color: context.palette.textSecondary
                                               .withValues(alpha: 0.2),
                                           width: 1.5,
                                         ),
@@ -582,7 +554,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                      color: AppTheme.textSecondary.withValues(alpha: 0.18),
+                      color: context.palette.textSecondary.withValues(alpha: 0.18),
                       width: 1.2,
                     ),
                   ),
@@ -635,7 +607,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
-                    color: AppTheme.textSecondary.withValues(alpha: 0.18),
+                    color: context.palette.textSecondary.withValues(alpha: 0.18),
                     width: 1.2,
                   ),
                 ),
@@ -661,7 +633,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color: AppTheme.textSecondary.withValues(alpha: 0.18),
+                          color: context.palette.textSecondary.withValues(alpha: 0.18),
                           width: 1.2,
                         ),
                       ),
@@ -1001,38 +973,13 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   }
 
   String _emojiFromLabel(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('sommeil') || l.contains('sleep')) return '😴';
-    if (l.contains('douche') || l.contains('toilet')) return '🚿';
-    if (l.contains('déjeuner') ||
-        l.contains('petit-déjeuner') ||
-        l.contains('dîner') ||
-        l.contains('repas')) {
-      return '🍽️';
-    }
-    if (l.contains('sortie') || l.contains('déplacement')) return '🚶';
-    return '🕒';
+    final t = ActivityType.fromTypeContains(label);
+    return t == ActivityType.unknown ? '🕒' : t.emoji;
   }
 
   String _formatTypeLabel(String rawType) {
-    final t = rawType.toLowerCase();
-    if (t.contains('sleep') || t.contains('sommeil')) return 'Sommeil';
-    if (t.contains('meal') ||
-        t.contains('repas') ||
-        t.contains('breakfast') ||
-        t.contains('lunch') ||
-        t.contains('dinner')) {
-      return 'Repas';
-    }
-    if (t.contains('toilet') || t.contains('douche') || t.contains('hygiene'))
-      return 'Hygiène';
-    if (t.contains('sortie') ||
-        t.contains('outside') ||
-        t.contains('déplacement'))
-      return 'Sortie / déplacement';
-    if (t.contains('tv') || t.contains('television')) return 'Télévision';
-    if (t.contains('kitchen') || t.contains('cuisine')) return 'Cuisine';
-    return rawType;
+    final t = ActivityType.fromTypeContains(rawType);
+    return t == ActivityType.unknown ? rawType : t.label;
   }
 
   String _compactTypeLabel(String label) {
@@ -1041,29 +988,10 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   }
 
   String _emojiForObserved(Activity activity) {
-    final t = activity.type.toLowerCase();
-    final r = (activity.room ?? '').toLowerCase();
-    if (t.contains('sleep') || r.contains('chambre') || r.contains('lit'))
-      return '😴';
-    if (t.contains('toilettes') ||
-        t.contains('douche') ||
-        r.contains('salle de bain') ||
-        r.contains('toilet')) {
-      return '🚿';
-    }
-    if (t.contains('repas') ||
-        t.contains('meal') ||
-        r.contains('cuisine') ||
-        r.contains('salle à manger')) {
-      return '🍽️';
-    }
-    if (t.contains('sortie') ||
-        t.contains('outside') ||
-        t.contains('déplacement') ||
-        r.contains('extérieur')) {
-      return '🚶';
-    }
-    return '📍';
+    final fromType = ActivityType.fromTypeContains(activity.type);
+    if (fromType != ActivityType.unknown) return fromType.emoji;
+    final fromRoom = ActivityType.fromRoom(activity.room ?? '');
+    return fromRoom == ActivityType.unknown ? '📍' : fromRoom.emoji;
   }
 
   String _formatHmFromMinute(int minute) {

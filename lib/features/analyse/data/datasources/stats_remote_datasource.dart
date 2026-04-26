@@ -12,7 +12,6 @@ class StatsRemoteDataSource {
     required String timezone,
     String? personId,
   }) async {
-    print('[REST] GET /api/stats/summary');
     final response = await _dio.get(
       '/api/stats/summary',
       queryParameters: {

@@ -1,5 +1,66 @@
 import 'package:flutter/material.dart';
 
+class AppPalette extends ThemeExtension<AppPalette> {
+  final Color bg;
+  final Color surface;
+  final Color surfaceLight;
+  final Color textPrimary;
+  final Color textSecondary;
+
+  const AppPalette({
+    required this.bg,
+    required this.surface,
+    required this.surfaceLight,
+    required this.textPrimary,
+    required this.textSecondary,
+  });
+
+  static const light = AppPalette(
+    bg: Color(0xFFF0F4F8),
+    surface: Color(0xFFFFFFFF),
+    surfaceLight: Color(0xFFE8F1F8),
+    textPrimary: Color(0xFF1A202C),
+    textSecondary: Color(0xFF718096),
+  );
+
+  static const dark = AppPalette(
+    bg: Color(0xFF0F1620),
+    surface: Color(0xFF1A2230),
+    surfaceLight: Color(0xFF232D3D),
+    textPrimary: Color(0xFFE6EAF0),
+    textSecondary: Color(0xFF9AA5B4),
+  );
+
+  @override
+  AppPalette copyWith({
+    Color? bg,
+    Color? surface,
+    Color? surfaceLight,
+    Color? textPrimary,
+    Color? textSecondary,
+  }) {
+    return AppPalette(
+      bg: bg ?? this.bg,
+      surface: surface ?? this.surface,
+      surfaceLight: surfaceLight ?? this.surfaceLight,
+      textPrimary: textPrimary ?? this.textPrimary,
+      textSecondary: textSecondary ?? this.textSecondary,
+    );
+  }
+
+  @override
+  AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
+    if (other is! AppPalette) return this;
+    return AppPalette(
+      bg: Color.lerp(bg, other.bg, t)!,
+      surface: Color.lerp(surface, other.surface, t)!,
+      surfaceLight: Color.lerp(surfaceLight, other.surfaceLight, t)!,
+      textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,
+      textSecondary: Color.lerp(textSecondary, other.textSecondary, t)!,
+    );
+  }
+}
+
 class AppTypography extends ThemeExtension<AppTypography> {
   final TextStyle sectionLabel;
   final TextStyle infoLabel;
@@ -250,6 +311,7 @@ class AppTheme {
         ),
       ),
       extensions: [
+        isDark ? AppPalette.dark : AppPalette.light,
         AppTypography(
           sectionLabel: TextStyle(
             color: onSurfaceColor,

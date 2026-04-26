@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:familly_baecon/core/domain/activity_type.dart';
+import 'package:familly_baecon/core/domain/anomaly_type.dart';
 import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_read_provider.dart';
 import 'package:familly_baecon/features/journal/data/models/routine_activity_model.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class AnomalyDetailPage extends ConsumerWidget {
   final AnomalyHistoryModel anomaly;
@@ -76,7 +79,7 @@ class AnomalyDetailPage extends ConsumerWidget {
               _InfoRow(
                 icon: Icons.notifications_rounded,
                 label: _relativeDay(notifTime),
-                accent: AppTheme.textSecondary,
+                accent: context.palette.textSecondary,
               ),
             ],
           ),
@@ -198,10 +201,10 @@ class _AlertExplanationCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.textSecondary.withValues(alpha: 0.12),
+          color: context.palette.textSecondary.withValues(alpha: 0.12),
         ),
       ),
       child: Column(
@@ -212,7 +215,7 @@ class _AlertExplanationCard extends StatelessWidget {
             child: Text(
               _explanationByType(anomaly.anomalyType),
               style: textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textPrimary,
+                color: context.palette.textPrimary,
                 height: 1.5,
               ),
             ),
@@ -221,7 +224,7 @@ class _AlertExplanationCard extends StatelessWidget {
             Divider(
               height: 1,
               thickness: 1,
-              color: AppTheme.textSecondary.withValues(alpha: 0.1),
+              color: context.palette.textSecondary.withValues(alpha: 0.1),
               indent: 16,
               endIndent: 16,
             ),
@@ -230,7 +233,7 @@ class _AlertExplanationCard extends StatelessWidget {
                 Divider(
                   height: 1,
                   thickness: 1,
-                  color: AppTheme.textSecondary.withValues(alpha: 0.07),
+                  color: context.palette.textSecondary.withValues(alpha: 0.07),
                   indent: 56,
                   endIndent: 16,
                 ),
@@ -275,7 +278,7 @@ class _DataRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: context.palette.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
@@ -335,7 +338,7 @@ class _SectionTitle extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          color: AppTheme.textSecondary,
+          color: context.palette.textSecondary,
           fontWeight: FontWeight.w700,
           fontSize: 13,
           letterSpacing: 0.3,
@@ -353,10 +356,10 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.textSecondary.withValues(alpha: 0.12),
+          color: context.palette.textSecondary.withValues(alpha: 0.12),
         ),
       ),
       child: Column(children: children),
@@ -395,7 +398,7 @@ class _InfoRow extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: AppTheme.textPrimary,
+                color: context.palette.textPrimary,
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
@@ -416,36 +419,18 @@ class _Separator extends StatelessWidget {
     return Divider(
       height: 1,
       thickness: 1,
-      color: AppTheme.textSecondary.withValues(alpha: 0.08),
+      color: context.palette.textSecondary.withValues(alpha: 0.08),
       indent: 16,
       endIndent: 16,
     );
   }
 }
 
-IconData _iconForActivity(String activityKey) {
-  return switch (activityKey) {
-    'sleep'          => Icons.bedtime_rounded,
-    'petit-déjeuner' => Icons.free_breakfast_rounded,
-    'déjeuner'       => Icons.restaurant_rounded,
-    'souper'         => Icons.ramen_dining_rounded,
-    'outside'        => Icons.directions_walk_rounded,
-    'daily_activity' => Icons.timeline_rounded,
-    _                => Icons.info_outline_rounded,
-  };
-}
+IconData _iconForActivity(String activityKey) =>
+    ActivityType.fromKey(activityKey).icon;
 
-String _prettyActivityLabel(String activityKey) {
-  return switch (activityKey) {
-    'sleep'          => 'le sommeil',
-    'petit-déjeuner' => 'le petit-déjeuner',
-    'déjeuner'       => 'le déjeuner',
-    'souper'         => 'le souper',
-    'outside'        => 'la sortie',
-    'daily_activity' => "l'activité quotidienne",
-    _                => "l'activité",
-  };
-}
+String _prettyActivityLabel(String activityKey) =>
+    ActivityType.fromKey(activityKey).subject;
 
 String _prettyTitle(AnomalyHistoryModel anomaly, String personName) {
   final type = anomaly.anomalyType;
@@ -509,30 +494,8 @@ String _prettyTitle(AnomalyHistoryModel anomaly, String personName) {
   };
 }
 
-String _explanationByType(String type) {
-  return switch (type.toLowerCase()) {
-    'missing' =>
-      'Cette activité fait normalement partie de la routine quotidienne, '
-          'mais elle n\'a pas été détectée aujourd\'hui.',
-    'timing' =>
-      'L\'activité s\'est déroulée à un horaire inhabituel par rapport '
-          'aux jours précédents.',
-    'duration_short' =>
-      'L\'activité a duré nettement moins longtemps que ce que la routine '
-          'habituelle laisse attendre.',
-    'duration_long' =>
-      'L\'activité a duré nettement plus longtemps que ce que la routine '
-          'habituelle laisse attendre.',
-    'freq_high' =>
-      'Cette activité est revenue plus souvent qu\'à l\'ordinaire au cours '
-          'de la journée.',
-    'freq_low' =>
-      'Cette activité a eu lieu moins souvent que d\'habitude. '
-          'Son absence partielle a déclenché cette alerte.',
-    _ =>
-      'Un écart significatif par rapport à la routine habituelle a été détecté.',
-  };
-}
+String _explanationByType(String type) =>
+    AnomalyType.fromKey(type).explanation;
 
 String _dayLabel(DateTime day) {
   final today = _todayFrance();

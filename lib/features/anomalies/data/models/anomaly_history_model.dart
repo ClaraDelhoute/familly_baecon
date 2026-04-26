@@ -1,3 +1,5 @@
+import 'package:familly_baecon/core/domain/anomaly_type.dart';
+
 class AnomalyHistoryModel {
   final int id;
   final DateTime detectedDate;
@@ -49,13 +51,7 @@ class AnomalyHistoryModel {
   }
 
   static String _normalizeSeverity(String? incoming, String anomalyType) {
-    if (incoming == 'high' || incoming == 'medium') {
-      return incoming!;
-    }
-    return switch (anomalyType) {
-      'missing' || 'duration_long' || 'freq_high' => 'high',
-      'timing' || 'duration_short' || 'freq_low' => 'medium',
-      _ => 'medium',
-    };
+    if (incoming == 'high' || incoming == 'medium') return incoming!;
+    return AnomalyType.fromKey(anomalyType).severity;
   }
 }

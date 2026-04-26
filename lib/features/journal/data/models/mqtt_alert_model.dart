@@ -1,3 +1,5 @@
+import 'package:familly_baecon/core/domain/activity_type.dart';
+import 'package:familly_baecon/core/domain/anomaly_type.dart';
 import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 
 class MqttAlertModel {
@@ -42,21 +44,12 @@ class MqttAlertModel {
   }
 
   String _titleFromRoom(String value) {
-    if (value == 'petit_dejeuner') return 'Alerte petit-déjeuner';
-    if (value == 'dejeuner') return 'Alerte déjeuner';
-    if (value == 'souper') return 'Alerte souper';
-    if (value == 'toilette') return 'Alerte toilettes';
-    return 'Alerte activité';
+    final label = ActivityType.fromKey(value).label;
+    return label == 'Activité' ? 'Alerte activité' : 'Alerte ${label.toLowerCase()}';
   }
 
   static String _normalizeSeverity(String? incoming, String anomalyType) {
-    if (incoming == 'high' || incoming == 'medium') {
-      return incoming!;
-    }
-    return switch (anomalyType) {
-      'missing' || 'duration_long' || 'freq_high' => 'high',
-      'timing' || 'duration_short' || 'freq_low' => 'medium',
-      _ => 'medium',
-    };
+    if (incoming == 'high' || incoming == 'medium') return incoming!;
+    return AnomalyType.fromKey(anomalyType).severity;
   }
 }

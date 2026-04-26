@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:familly_baecon/core/domain/activity_type.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class DayTimeline extends StatelessWidget {
   final List<Activity> expectedActivities;
@@ -30,7 +32,7 @@ class DayTimeline extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textSecondary,
+                      color: context.palette.textSecondary,
                       letterSpacing: 1.2,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -99,20 +101,8 @@ class _ActivityTimelineColumn extends StatelessWidget {
   });
 
   Color _getActivityColor(Activity activity) {
-    if (!isObserved) {
-      return AppTheme.activityGreen;
-    }
-    // Logique couleur pour observé
-    if (activity.type.toLowerCase().contains('sleep')) {
-      return AppTheme.activityGreen;
-    }
-    if (activity.type.toLowerCase().contains('toilettes')) {
-      return AppTheme.accentBlue;
-    }
-    if (activity.type.toLowerCase().contains('television')) {
-      return AppTheme.accentCyan;
-    }
-    return AppTheme.activityPurple;
+    if (!isObserved) return AppTheme.activityGreen;
+    return ActivityType.fromTypeContains(activity.type).color;
   }
 
   String _getActivityLabel(Activity activity) {
@@ -151,7 +141,7 @@ class _ActivityTimelineColumn extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppTheme.darkBgLight,
+                    color: context.palette.surface,
                     border: Border(
                       left: BorderSide(
                         color: isObserved ? color : Colors.grey.shade600,
@@ -187,7 +177,7 @@ class _ActivityTimelineColumn extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           color: isObserved
-                              ? AppTheme.textSecondary
+                              ? context.palette.textSecondary
                               : Colors.grey.shade500,
                           height: 1.5,
                           fontFamily: 'monospace',
@@ -199,7 +189,7 @@ class _ActivityTimelineColumn extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           color: isObserved
-                              ? AppTheme.textSecondary
+                              ? context.palette.textSecondary
                               : Colors.grey.shade500,
                         ),
                         maxLines: 1,
@@ -214,7 +204,7 @@ class _ActivityTimelineColumn extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Divider(
-                  color: AppTheme.textSecondary.withValues(alpha: 0.1),
+                  color: context.palette.textSecondary.withValues(alpha: 0.1),
                   height: 8,
                 ),
               ),

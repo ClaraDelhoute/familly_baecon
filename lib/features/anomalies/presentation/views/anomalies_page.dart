@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:familly_baecon/core/domain/activity_type.dart';
+import 'package:familly_baecon/core/domain/anomaly_type.dart';
 import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
@@ -8,6 +10,7 @@ import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly
 import 'package:familly_baecon/features/anomalies/presentation/views/anomaly_detail_page.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class AnomaliesPage extends ConsumerWidget {
   const AnomaliesPage({super.key});
@@ -77,7 +80,7 @@ class _EmptyState extends StatelessWidget {
               'Tout va bien',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
+                color: context.palette.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -85,7 +88,7 @@ class _EmptyState extends StatelessWidget {
               'Aucune anomalie détectée pour le moment.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: AppTheme.textSecondary,
+                color: context.palette.textSecondary,
                 height: 1.4,
               ),
             ),
@@ -182,7 +185,7 @@ class _DayHeader extends StatelessWidget {
           Text(
             _dayLabel(day),
             style: TextStyle(
-              color: AppTheme.textSecondary,
+              color: context.palette.textSecondary,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.3,
@@ -230,10 +233,10 @@ class _AnomalyCard extends ConsumerWidget {
     final anomalyNature = _shortAnomalyDescription(anomaly, name);
     final when = _activityWhenLabel(anomaly);
 
-    final cardColor = AppTheme.darkBgLight;
+    final cardColor = context.palette.surface;
     final borderColor = highlighted
         ? accent.withValues(alpha: 0.6)
-        : AppTheme.textSecondary.withValues(alpha: 0.12);
+        : context.palette.textSecondary.withValues(alpha: 0.12);
     final borderWidth = highlighted ? 2.0 : 1.0;
 
     return Material(
@@ -282,7 +285,7 @@ class _AnomalyCard extends ConsumerWidget {
                                 const TextStyle(fontSize: 20))
                             .copyWith(
                               fontWeight: isRead ? FontWeight.w400 : FontWeight.w800,
-                              color: isRead ? AppTheme.textSecondary : AppTheme.textPrimary,
+                              color: isRead ? context.palette.textSecondary : context.palette.textPrimary,
                               height: 1.15,
                             ),
                         maxLines: 1,
@@ -292,7 +295,7 @@ class _AnomalyCard extends ConsumerWidget {
                       Text(
                         anomalyNature,
                         style: TextStyle(
-                          color: isRead ? AppTheme.textSecondary : AppTheme.textPrimary,
+                          color: isRead ? context.palette.textSecondary : context.palette.textPrimary,
                           fontSize: 13,
                           fontWeight: isRead ? FontWeight.w400 : FontWeight.w600,
                           height: 1.2,
@@ -306,14 +309,14 @@ class _AnomalyCard extends ConsumerWidget {
                           Icon(
                             Icons.schedule_rounded,
                             size: 13,
-                            color: AppTheme.textSecondary,
+                            color: context.palette.textSecondary,
                           ),
                           const SizedBox(width: 4),
                           Flexible(
                             child: Text(
                               when,
                               style: TextStyle(
-                                color: AppTheme.textSecondary,
+                                color: context.palette.textSecondary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -329,7 +332,7 @@ class _AnomalyCard extends ConsumerWidget {
                 const SizedBox(width: 8),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: AppTheme.textSecondary,
+                  color: context.palette.textSecondary,
                   size: 24,
                 ),
               ],
@@ -343,41 +346,14 @@ class _AnomalyCard extends ConsumerWidget {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-IconData _iconForActivity(String activityKey) {
-  return switch (activityKey) {
-    'sleep'          => Icons.bedtime_rounded,
-    'petit-déjeuner' => Icons.free_breakfast_rounded,
-    'déjeuner'       => Icons.restaurant_rounded,
-    'souper'         => Icons.ramen_dining_rounded,
-    'outside'        => Icons.directions_walk_rounded,
-    'daily_activity' => Icons.timeline_rounded,
-    _                => Icons.info_outline_rounded,
-  };
-}
+IconData _iconForActivity(String activityKey) =>
+    ActivityType.fromKey(activityKey).icon;
 
-String _prettyActivityLabel(String activityKey) {
-  return switch (activityKey) {
-    'sleep'          => 'Sommeil',
-    'petit-déjeuner' => 'Petit-déjeuner',
-    'déjeuner'       => 'Déjeuner',
-    'souper'         => 'Souper',
-    'outside'        => 'Sortie',
-    'daily_activity' => 'Activité quotidienne',
-    _                => 'Activité',
-  };
-}
+String _prettyActivityLabel(String activityKey) =>
+    ActivityType.fromKey(activityKey).label;
 
-String _shortAnomalyDescription(AnomalyHistoryModel anomaly, String _) {
-  return switch (anomaly.anomalyType) {
-    'missing'        => 'Activité manquante',
-    'timing'         => 'Horaire inhabituel',
-    'duration_short' => 'Durée plus courte que d\'habitude',
-    'duration_long'  => 'Durée plus longue que d\'habitude',
-    'freq_high'      => 'Fréquence anormalement élevée',
-    'freq_low'       => 'Fréquence anormalement basse',
-    _                => 'Comportement inhabituel',
-  };
-}
+String _shortAnomalyDescription(AnomalyHistoryModel anomaly, String _) =>
+    AnomalyType.fromKey(anomaly.anomalyType).shortDescription;
 
 String _whenLabel(DateTime local) {
   final today = _todayFrance();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 /// Représentation d'une pièce
 class Room {
@@ -270,7 +271,7 @@ class _FloorPlanWidgetState extends State<FloorPlanWidget> {
           label,
           style: TextStyle(
             fontSize: 12,
-            color: AppTheme.textSecondary,
+            color: context.palette.textSecondary,
             fontWeight: FontWeight.w600,
           ),
         ),

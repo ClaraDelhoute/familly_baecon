@@ -7,10 +7,8 @@ import 'package:familly_baecon/features/analyse/data/datasources/stats_remote_da
 import 'package:familly_baecon/features/analyse/data/models/stats_summary_model.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 
-final _statsDioProvider = Provider((ref) => DioProvider.create());
-
 final _statsRemoteDataSourceProvider = Provider((ref) {
-  return StatsRemoteDataSource(ref.watch(_statsDioProvider));
+  return StatsRemoteDataSource(DioProvider.instance);
 });
 
 final _statsLocalDataSourceProvider = Provider((ref) {

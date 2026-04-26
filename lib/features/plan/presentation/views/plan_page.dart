@@ -8,6 +8,7 @@ import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_wid
 import 'package:familly_baecon/core/utils/activity_labels.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class PlanPage extends ConsumerWidget {
   const PlanPage({super.key});
@@ -77,7 +78,7 @@ class PlanPage extends ConsumerWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textSecondary,
+                color: context.palette.textSecondary,
               ),
             ),
             const SizedBox(height: 6),
@@ -101,8 +102,8 @@ class PlanPage extends ConsumerWidget {
               spacing: 16,
               runSpacing: 8,
               children: [
-                _legend(const Color(0xFFDC2626), 'Dernier capteur déclenché'),
-                _legend(const Color(0xFF4B5563), 'Capteur inactif'),
+                _legend(context, const Color(0xFFDC2626), 'Dernier capteur déclenché'),
+                _legend(context, const Color(0xFF4B5563), 'Capteur inactif'),
               ],
             ),
           ],
@@ -116,7 +117,7 @@ class PlanPage extends ConsumerWidget {
     return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 
-  Widget _legend(Color color, String label) {
+  Widget _legend(BuildContext context, Color color, String label) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -131,7 +132,7 @@ class PlanPage extends ConsumerWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+          style: TextStyle(fontSize: 11, color: context.palette.textSecondary),
         ),
       ],
     );

@@ -2,15 +2,14 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/services/settings_service.dart';
 
-/// Provider pour gérer l'état de la photo de profil globalement
 final profileImagePathProvider = StateNotifierProvider<ProfileImageNotifier, String?>((ref) {
-  return ProfileImageNotifier();
+  return ProfileImageNotifier(ref.watch(settingsServiceProvider));
 });
 
 class ProfileImageNotifier extends StateNotifier<String?> {
-  final _settings = SettingsService();
+  final SettingsService _settings;
 
-  ProfileImageNotifier() : super(null) {
+  ProfileImageNotifier(this._settings) : super(null) {
     _load();
   }
 
@@ -35,4 +34,3 @@ class ProfileImageNotifier extends StateNotifier<String?> {
     await _load();
   }
 }
-

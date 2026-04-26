@@ -7,6 +7,7 @@ import 'package:familly_baecon/core/services/settings_service.dart';
 import 'package:familly_baecon/core/models/absence_period.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/profile/presentation/widgets/profile_avatar_widget.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -16,13 +17,14 @@ class SettingsPage extends ConsumerStatefulWidget {
 }
 
 class _SettingsPageState extends ConsumerState<SettingsPage> {
-  final _settings = SettingsService();
+  late final SettingsService _settings;
   AbsencePeriod _absence = AbsencePeriod();
   bool _isAbsenceActive = false;
 
   @override
   void initState() {
     super.initState();
+    _settings = ref.read(settingsServiceProvider);
     _loadAbsence();
   }
 
@@ -97,9 +99,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     final double previewTextFontSize = 16 * accessibility.textScaleFactor;
     final appTypography = Theme.of(context).extension<AppTypography>();
     final sectionTitleStyle =
-        appTypography?.sectionLabel.copyWith(color: AppTheme.textSecondary) ??
+        appTypography?.sectionLabel.copyWith(color: context.palette.textSecondary) ??
         Theme.of(context).textTheme.titleMedium?.copyWith(
-          color: AppTheme.textSecondary,
+          color: context.palette.textSecondary,
           fontWeight: FontWeight.w700,
         );
 
@@ -144,7 +146,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 16,
-                            color: AppTheme.textPrimary,
+                            color: context.palette.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -152,7 +154,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           'Appuyez sur la photo pour la changer',
                           style: TextStyle(
                             fontSize: 13,
-                            color: AppTheme.textSecondary,
+                            color: context.palette.textSecondary,
                           ),
                         ),
                       ],
@@ -232,7 +234,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             children: [
                               Text(
                                 'Début',
-                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -249,7 +251,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                             children: [
                               Text(
                                 'Fin',
-                                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                style: TextStyle(fontSize: 12, color: context.palette.textSecondary),
                               ),
                               const SizedBox(height: 4),
                               Text(
@@ -314,7 +316,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           style: TextStyle(
                             fontSize: previewTextFontSize,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
+                            color: context.palette.textPrimary,
                             height: 1.0,
                           ),
                         ),

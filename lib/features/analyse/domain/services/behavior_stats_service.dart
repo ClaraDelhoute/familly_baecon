@@ -1,3 +1,4 @@
+import 'package:familly_baecon/core/domain/activity_type.dart';
 import 'package:familly_baecon/features/home/domain/entities/activity.dart';
 
 class DailyBehaviorStats {
@@ -150,10 +151,9 @@ class BehaviorStatsService {
     );
   }
 
-  static bool _isSleep(Activity activity) => activity.type == 'sleep';
+  static bool _isSleep(Activity activity) =>
+      ActivityType.fromKey(activity.type).isSleep;
 
   static bool _isMeal(Activity activity) =>
-      activity.type == 'petit-déjeuner' ||
-      activity.type == 'déjeuner' ||
-      activity.type == 'souper';
+      ActivityType.fromKey(activity.type).isMeal;
 }

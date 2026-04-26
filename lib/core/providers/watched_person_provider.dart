@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/services/settings_service.dart';
 
-final _settingsServiceProvider = Provider<SettingsService>((_) => SettingsService());
-
 class WatchedPersonNameNotifier extends StateNotifier<String> {
   WatchedPersonNameNotifier(this._service) : super('') {
     _load();
@@ -22,5 +20,5 @@ class WatchedPersonNameNotifier extends StateNotifier<String> {
 
 final watchedPersonNameProvider =
     StateNotifierProvider<WatchedPersonNameNotifier, String>((ref) {
-  return WatchedPersonNameNotifier(ref.watch(_settingsServiceProvider));
+  return WatchedPersonNameNotifier(ref.watch(settingsServiceProvider));
 });

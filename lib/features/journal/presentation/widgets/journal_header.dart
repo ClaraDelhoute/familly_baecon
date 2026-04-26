@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class JournalHeader extends StatelessWidget {
   final String personName;
@@ -20,7 +21,7 @@ class JournalHeader extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppTheme.accentBlue, AppTheme.darkBgLight],
+          colors: [AppTheme.accentBlue, context.palette.surface],
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

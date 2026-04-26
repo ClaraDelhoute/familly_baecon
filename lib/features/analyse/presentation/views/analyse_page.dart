@@ -4,6 +4,7 @@ import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/analyse/data/models/stats_summary_model.dart';
 import 'package:familly_baecon/features/analyse/presentation/providers/stats_summary_provider.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 enum _Period { day, week, month, year }
 
@@ -215,7 +216,7 @@ class _PeriodSelector extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(14),
       ),
       padding: const EdgeInsets.all(4),
@@ -238,7 +239,7 @@ class _PeriodSelector extends StatelessWidget {
                   label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: isSelected ? Colors.white : AppTheme.textSecondary,
+                    color: isSelected ? Colors.white : context.palette.textSecondary,
                     fontWeight:
                         isSelected ? FontWeight.w700 : FontWeight.w500,
                     fontSize: 13,
@@ -262,7 +263,7 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text,
       style: TextStyle(
-        color: AppTheme.textSecondary,
+        color: context.palette.textSecondary,
         fontWeight: FontWeight.w700,
         fontSize: 13,
         letterSpacing: 0.3,
@@ -293,7 +294,7 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: accent.withValues(alpha: 0.2),
@@ -316,7 +317,7 @@ class _StatTile extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: context.palette.textPrimary,
               fontSize: 32,
               fontWeight: FontWeight.w800,
               height: 1,
@@ -326,7 +327,7 @@ class _StatTile extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: context.palette.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -378,7 +379,7 @@ class _OfflineBanner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: AppTheme.accentCyan.withValues(alpha: 0.35),
@@ -396,7 +397,7 @@ class _OfflineBanner extends StatelessWidget {
                 Text(
                   'Mode hors ligne',
                   style: TextStyle(
-                    color: AppTheme.textPrimary,
+                    color: context.palette.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
@@ -405,7 +406,7 @@ class _OfflineBanner extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
+                    color: context.palette.textSecondary,
                     fontSize: 12,
                     height: 1.3,
                   ),
@@ -436,7 +437,7 @@ class _StatsErrorCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.darkBgLight,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppTheme.activityRed.withValues(alpha: 0.2),
@@ -455,7 +456,7 @@ class _StatsErrorCard extends StatelessWidget {
           Text(
             'Impossible de charger les statistiques',
             style: TextStyle(
-              color: AppTheme.textPrimary,
+              color: context.palette.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -463,7 +464,7 @@ class _StatsErrorCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Réessaie dans quelques instants ou vérifie ta connexion.',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+            style: TextStyle(color: context.palette.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 12),
           TextButton.icon(

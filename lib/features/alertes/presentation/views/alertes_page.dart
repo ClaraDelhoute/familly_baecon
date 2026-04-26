@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
+import 'package:familly_baecon/core/theme/palette_x.dart';
 
 class AlertesPage extends ConsumerWidget {
   const AlertesPage({super.key});
@@ -24,13 +25,13 @@ class AlertesPage extends ConsumerWidget {
                   Icon(
                     Icons.notifications_off,
                     size: 48,
-                    color: AppTheme.textSecondary,
+                    color: context.palette.textSecondary,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     'Aucune alerte',
                     style: TextStyle(
-                      color: AppTheme.textSecondary,
+                      color: context.palette.textSecondary,
                       fontSize: 16,
                     ),
                   ),
@@ -91,7 +92,7 @@ class AlertesPage extends ConsumerWidget {
                                   alert.description,
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: AppTheme.textSecondary,
+                                    color: context.palette.textSecondary,
                                   ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -101,7 +102,7 @@ class AlertesPage extends ConsumerWidget {
                                   _relativeTime(alert.timestamp),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: AppTheme.textSecondary.withValues(alpha: 0.7),
+                                    color: context.palette.textSecondary.withValues(alpha: 0.7),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -113,7 +114,7 @@ class AlertesPage extends ConsumerWidget {
                             icon: const Icon(Icons.close),
                             iconSize: 18,
                             onPressed: () {},
-                            color: AppTheme.textSecondary,
+                            color: context.palette.textSecondary,
                           ),
                         ],
                       ),
