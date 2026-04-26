@@ -1,16 +1,44 @@
-# family_baecon
+# Family Beacon
 
-A new Flutter project.
+Application mobile Flutter de surveillance pour les aînés qui vivent seuls. 
+Détecte les anomalies de routine (sommeil, repas, sorties) via capteurs IoT et envoie des alertes aux aidants via cette application.
 
-## Getting Started
+## Stack
 
-This project is a starting point for a Flutter application.
+- **Flutter** (Dart) — mobile Android
+- **Riverpod 2.x** — gestion d'état
+- **MQTT + HTTP polling** — communication temps réel avec le backend
+- **Firebase Cloud Messaging** — notifications push (désactivé en debug)
 
-A few resources to get you started if this is your first Flutter project:
+## Architecture
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```
+lib/
+├── core/
+│   ├── backend/          # Providers MQTT + HTTP (liveAlertsProvider, etc.)
+│   ├── domain/           # Enums métier : AnomalyType, ActivityType
+│   ├── services/         # SettingsService (settingsServiceProvider)
+│   └── theme/            # AppTheme, AppPalette (ThemeExtension)
+└── features/
+    ├── home/             # Tableau de bord principal
+    ├── journal/          # Timeline activités observées vs. journée type
+    ├── anomalies/        # Liste et détail des anomalies
+    ├── alertes/          # Alertes temps réel
+    ├── analyse/          # Statistiques comportementales
+    └── plan/             # Localisation (plan de l'habitat)
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Lancer en local
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Builder l'APK
+
+```powershell
+./build-apk -ApiHost <IP_SERVEUR> -ApkName FamilyBeacon.apk
+```
+
+> Nécessite `android/local.properties` avec `sdk.dir` configuré.
