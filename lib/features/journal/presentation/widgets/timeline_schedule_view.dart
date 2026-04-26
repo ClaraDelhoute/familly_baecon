@@ -880,7 +880,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
           ),
           decoration: BoxDecoration(
             color: const Color(0xFFF2F4F7),
-            border: Border.all(color: Colors.black26, width: 1.6),
+            border: Border.all(color: Colors.black54, width: 1.8),
             borderRadius: BorderRadius.circular(6),
             boxShadow: [
               BoxShadow(

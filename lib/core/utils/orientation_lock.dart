@@ -1,31 +1,15 @@
-import 'dart:ui';
-
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-/// Verrouille l'orientation portrait sur téléphone, libre sur tablette.
-/// Heuristique standard : téléphone si shortestSide < 600 dp.
+/// Aucune contrainte d'orientation — le système et les préférences utilisateur
+/// décident. Sur téléphone Android, l'utilisateur peut verrouiller dans les
+/// paramètres système si besoin.
 Future<void> applyDefaultOrientationLock() async {
-  if (_isPhone()) {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-    ]);
-  } else {
-    await SystemChrome.setPreferredOrientations(DeviceOrientation.values);
-  }
+  await SystemChrome.setPreferredOrientations([]);
 }
 
-bool _isPhone() {
-  final view = WidgetsBinding.instance.platformDispatcher.views.first;
-  final size = view.physicalSize / view.devicePixelRatio;
-  final shortestSide = size.shortestSide;
-  return shortestSide < 600;
-}
-
-/// Pour usage hors `WidgetsBinding` (ex. avant ensureInitialized).
-double currentShortestSideDp() {
-  final view = PlatformDispatcher.instance.views.first;
-  final size = view.physicalSize / view.devicePixelRatio;
-  return size.shortestSide;
+/// Renvoie true si l'appareil ressemble à une tablette (shortestSide ≥ 600 dp).
+/// Utile pour adapter les layouts, pas pour verrouiller l'orientation.
+bool isTablet(BuildContext context) {
+  return MediaQuery.of(context).size.shortestSide >= 600;
 }

@@ -13,6 +13,7 @@ import 'package:familly_baecon/core/providers/profile_image_provider.dart';
 import 'package:familly_baecon/core/providers/watched_person_provider.dart';
 import 'package:familly_baecon/features/settings/presentation/views/settings_page.dart';
 import 'package:familly_baecon/features/analyse/domain/services/behavior_stats_service.dart';
+import 'package:familly_baecon/features/analyse/presentation/providers/stats_summary_provider.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/phare_magnifique.dart';
 import 'package:familly_baecon/core/utils/activity_labels.dart';
 import 'package:familly_baecon/features/home/presentation/providers/test_mode_provider.dart';
@@ -300,6 +301,13 @@ class HomePage extends ConsumerWidget {
           color: context.palette.textPrimary,
           letterSpacing: 0.3,
         );
+    final now = DateTime.now();
+    final dayQuery = StatsSummaryQuery(
+      period: 'day',
+      date: DateTime(now.year, now.month, now.day),
+    );
+    final dayStatsAsync = ref.watch(statsSummaryProvider(dayQuery));
+
     // Utiliser les providers de test au lieu des vrais providers
     final observed = ref.watch(testObservedActivitiesProvider);
     final expected = ref.watch(testExpectedActivitiesProvider);
@@ -387,7 +395,9 @@ class HomePage extends ConsumerWidget {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final isWide = constraints.maxWidth >= 700;
+          // Deux colonnes uniquement en paysage (largeur > hauteur) ET tablette.
+          final isWide = constraints.maxWidth >= 600 &&
+              constraints.maxWidth > constraints.maxHeight;
           final avatarSize = isWide ? 96.0 : 72.0;
           final profileImagePath = ref.watch(profileImagePathProvider);
           final avatar = Container(
@@ -443,7 +453,7 @@ class HomePage extends ConsumerWidget {
                 _InfoTile(
                   icon: Icons.history_rounded,
                   iconColor: AppTheme.accentBlue,
-                  label: 'Dernière activité',
+                  label: 'Dernière sortie',
                   value: _formatLastActivityValue(lastActivityOfLatestDay),
                 ),
                 Divider(
@@ -509,10 +519,16 @@ class HomePage extends ConsumerWidget {
             );
           }
 
+          // Phare responsive : occupe au max 80% de la largeur disponible,
+          // plafonné à 320px, ratio 260/210 conservé.
+          // Tablette portrait : jusqu'à 480px. Téléphone : plafonné à 320px.
+          final phareWCap = constraints.maxWidth >= 600 ? 480.0 : 320.0;
+          final phareMaxW = (constraints.maxWidth * 0.8).clamp(0.0, phareWCap);
+          const phareAspect = 260.0 / 210.0;
           final phonePhare = buildPhare(
-            width: 260,
-            height: 210,
-            lighthouseSize: 190,
+            width: phareMaxW,
+            height: phareMaxW / phareAspect,
+            lighthouseSize: (phareMaxW / phareAspect) * 0.9,
           );
 
           final summarySection = Column(
@@ -521,16 +537,39 @@ class HomePage extends ConsumerWidget {
             children: [
               Text('Résumé du jour', style: sectionLabelStyle),
               const SizedBox(height: 14),
-              _buildDailySummaryStats(observedForLastActivity),
+              dayStatsAsync.when(
+                data: (result) => _buildDailySummaryStatsFromBackend(
+                  result.summary.sleepMinutes,
+                  result.summary.mealsCount,
+                  observedForLastActivity,
+                ),
+                loading: () => _buildDailySummaryStats(observedForLastActivity),
+                error: (_, __) => _buildDailySummaryStats(observedForLastActivity),
+              ),
             ],
           );
 
           if (isWide) {
-            // Tablette : layout deux colonnes, pas de scroll.
+            // Tablette paysage/portrait large : deux colonnes.
+            // On contraint la hauteur via un padding + IntrinsicHeight est
+            // trop coûteux — on utilise la hauteur réelle des contraintes.
+            final availH = constraints.maxHeight - 48; // 24+24 padding
+            const aspect = 260.0 / 210.0;
+            final reserveBtn = hasLatestAnomaly ? 68.0 : 0.0;
+            // Colonne droite = flex 6 sur largeur totale - 24 padding - 24 gap
+            final rightColW = (constraints.maxWidth - 48 - 24) * 6 / 11;
+            var phareW = rightColW;
+            var phareH = phareW / aspect;
+            final maxPhareH = availH - reserveBtn;
+            if (phareH > maxPhareH) {
+              phareH = maxPhareH;
+              phareW = phareH * aspect;
+            }
+
             return Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              padding: const EdgeInsets.all(24),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Expanded(
                     flex: 5,
@@ -556,28 +595,12 @@ class HomePage extends ConsumerWidget {
                   const SizedBox(width: 24),
                   Expanded(
                     flex: 6,
-                    child: LayoutBuilder(
-                      builder: (context, slot) {
-                        // Phare = carré ~5/6 d'aspect (260x210). On prend
-                        // tout l'espace dispo en respectant ce ratio.
-                        const aspect = 260 / 210;
-                        final reserveBtn = hasLatestAnomaly ? 56.0 : 0.0;
-                        final maxH = slot.maxHeight - reserveBtn;
-                        final maxW = slot.maxWidth;
-                        var w = maxW;
-                        var h = w / aspect;
-                        if (h > maxH) {
-                          h = maxH;
-                          w = h * aspect;
-                        }
-                        return Center(
-                          child: buildPhare(
-                            width: w,
-                            height: h,
-                            lighthouseSize: h * 0.9,
-                          ),
-                        );
-                      },
+                    child: Center(
+                      child: buildPhare(
+                        width: phareW,
+                        height: phareH,
+                        lighthouseSize: phareH * 0.9,
+                      ),
                     ),
                   ),
                 ],
@@ -585,12 +608,12 @@ class HomePage extends ConsumerWidget {
             );
           }
 
-          // Téléphone : layout vertical, scrollable.
+          // Téléphone / portrait tablette : layout vertical, scrollable.
           return SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Center(
                     child: Column(
@@ -606,7 +629,10 @@ class HomePage extends ConsumerWidget {
                   const SizedBox(height: 20),
                   Center(child: phonePhare),
                   const SizedBox(height: 28),
-                  summarySection,
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: summarySection,
+                  ),
                   const SizedBox(height: 24),
                 ],
               ),
@@ -620,7 +646,62 @@ class HomePage extends ConsumerWidget {
   Color _getActivityColor(Activity activity) =>
       ActivityType.fromTypeContains(activity.type).color;
 
-  /// Construire le résumé du jour avec des stats pertinentes
+  Widget _buildDailySummaryStatsFromBackend(
+    int sleepMinutes,
+    int mealsCount,
+    List<Activity> observed,
+  ) {
+    const expectedMeals = 3;
+    final sleepHours = (sleepMinutes / 60).toStringAsFixed(1);
+    final latestOther = observed.isEmpty
+        ? null
+        : observed
+              .where((activity) {
+                final t = ActivityType.fromTypeContains(activity.type);
+                return !t.isSleep && !t.isMeal;
+              })
+              .fold<Activity?>(
+                null,
+                (prev, current) =>
+                    prev == null || current.startAt.isAfter(prev.startAt)
+                    ? current
+                    : prev,
+              );
+    final latestOtherTime = latestOther == null
+        ? 'N/A'
+        : '${latestOther.startAt.hour.toString().padLeft(2, '0')}:${latestOther.startAt.minute.toString().padLeft(2, '0')}';
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _StatCard(
+          label: 'Repas pris',
+          value: '$mealsCount/$expectedMeals',
+          icon: Icons.restaurant,
+          color: AppTheme.activityPurple,
+          flex: 1,
+        ),
+        const SizedBox(width: 10),
+        _StatCard(
+          label: 'Sommeil',
+          value: '${sleepHours}h',
+          icon: Icons.bedtime,
+          color: AppTheme.activityGreen,
+          flex: 1,
+        ),
+        const SizedBox(width: 10),
+        _StatCard(
+          label: 'Dernière sortie',
+          value: latestOtherTime,
+          icon: Icons.exit_to_app,
+          color: AppTheme.accentBlue,
+          flex: 1,
+        ),
+      ],
+    );
+  }
+
+  /// Construire le résumé du jour avec des stats pertinentes (fallback local)
   Widget _buildDailySummaryStats(List<Activity> observed) {
     final dayStats = BehaviorStatsService.summarizeLatestDay(observed);
     const expectedMeals = 3;
@@ -663,7 +744,7 @@ class HomePage extends ConsumerWidget {
         ),
         const SizedBox(width: 10),
         _StatCard(
-          label: 'Dernière activité',
+          label: 'Dernière sortie',
           value: latestOtherTime,
           icon: Icons.exit_to_app,
           color: AppTheme.accentBlue,

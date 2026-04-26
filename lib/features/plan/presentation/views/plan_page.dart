@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
-import 'package:familly_baecon/core/utils/orientation_lock.dart';
 import 'package:familly_baecon/features/home/presentation/providers/floor_plan_providers.dart';
 import 'package:familly_baecon/features/home/presentation/widgets/floor_plan_widget.dart';
 import 'package:familly_baecon/core/utils/activity_labels.dart';
@@ -34,26 +32,6 @@ class PlanPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Plan'),
         actions: [
-          IconButton(
-            tooltip: 'Mode horizontal',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _PlanLandscapePage(
-                    rooms: rooms,
-                    sensors: sensors,
-                    selectedRoom: selectedRoom,
-                    activeSensor: latestSensorId,
-                    onRoomTap: (roomId) {
-                      ref.read(selectedRoomProvider.notifier).state = roomId;
-                    },
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.screen_rotation_alt),
-          ),
           IconButton(
             tooltip: 'Paramètres',
             onPressed: () {
@@ -165,73 +143,5 @@ class PlanPage extends ConsumerWidget {
       }
     }
     return null;
-  }
-}
-
-class _PlanLandscapePage extends StatefulWidget {
-  final List<Room> rooms;
-  final List<Sensor> sensors;
-  final String? selectedRoom;
-  final String? activeSensor;
-  final ValueChanged<String> onRoomTap;
-
-  const _PlanLandscapePage({
-    required this.rooms,
-    required this.sensors,
-    required this.selectedRoom,
-    required this.activeSensor,
-    required this.onRoomTap,
-  });
-
-  @override
-  State<_PlanLandscapePage> createState() => _PlanLandscapePageState();
-}
-
-class _PlanLandscapePageState extends State<_PlanLandscapePage> {
-  @override
-  void initState() {
-    super.initState();
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-  }
-
-  @override
-  void dispose() {
-    applyDefaultOrientationLock();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Plan (horizontal)'),
-        actions: [
-          TextButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close, color: Colors.white),
-            label: const Text('Quitter', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(4),
-        child: SizedBox.expand(
-          child: FloorPlanWidget(
-            rooms: widget.rooms,
-            sensors: widget.sensors,
-            selectedRoomId: widget.selectedRoom,
-            activeSensorId: widget.activeSensor,
-            height: double.infinity,
-            frameless: true,
-            showHeader: false,
-            showLegend: false,
-            onRoomTap: widget.onRoomTap,
-          ),
-        ),
-      ),
-    );
   }
 }
