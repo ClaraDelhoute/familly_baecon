@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:familly_baecon/core/config/app_config.dart';
 import 'package:familly_baecon/core/mqtt/mqtt_service.dart';
 import 'package:familly_baecon/core/network/dio_provider.dart';
+import 'package:familly_baecon/core/services/anomaly_notification_service.dart';
 import 'package:familly_baecon/core/services/settings_service.dart';
 import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/anomalies/data/models/anomaly_history_model.dart';
@@ -125,11 +126,17 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
       final inAbsence = await settings.isInAbsence();
       if (disposed) return;
       if (inAbsence) {
-        controller.add(_deduplicateAlerts(mqttAlerts).isEmpty ? lastData : _deduplicateAlerts(mqttAlerts));
+        final deduplicatedMqttAlerts = _deduplicateAlerts(mqttAlerts);
+        controller.add(
+          deduplicatedMqttAlerts.isEmpty ? lastData : deduplicatedMqttAlerts,
+        );
         return;
       }
 
-      final notifications = await datasource.fetchNotifications(limit: 100, sinceHours: 48);
+      final notifications = await datasource.fetchNotifications(
+        limit: 100,
+        sinceHours: 48,
+      );
       if (disposed) return;
       final mapped = [
         ...notifications.map(_notificationToAlert),
@@ -160,8 +167,20 @@ final liveAlertsProvider = StreamProvider<List<AlertItem>>((ref) {
           .jsonMessages(AppConfig.mqttTopicAlerts)
           .map(MqttAlertModel.fromJson)
           .map((alert) => alert.toAlertItem())
-          .listen((alert) {
+          .listen((alert) async {
             if (disposed) return;
+            final inAbsence = await settings.isInAbsence();
+            if (disposed) return;
+            if (!inAbsence) {
+              unawaited(
+                AnomalyNotificationService.showAnomalyAlert(
+                  id: alert.id,
+                  title: alert.title,
+                  message: alert.description,
+                  severity: alert.severity,
+                ),
+              );
+            }
             mqttAlerts = [alert, ...mqttAlerts].take(100).toList();
             // Debounce: batch rapid MQTT messages into a single reload
             mqttDebounce?.cancel();

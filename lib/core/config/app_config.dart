@@ -35,4 +35,9 @@ class AppConfig {
     'FAMILY_BEACON_STATS_TIMEZONE',
     defaultValue: 'Europe/Paris',
   );
+
+  static const String fcmTokenRegisterPath = String.fromEnvironment(
+    'FAMILY_BEACON_FCM_TOKEN_REGISTER_PATH',
+    defaultValue: '/api/devices/register-token',
+  );
 }

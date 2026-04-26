@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,8 @@ import 'package:familly_baecon/core/utils/orientation_lock.dart';
 import 'package:familly_baecon/core/providers/accessibility_provider.dart';
 import 'package:familly_baecon/core/providers/theme_mode_provider.dart';
 import 'package:familly_baecon/core/services/app_badge_service.dart';
+import 'package:familly_baecon/core/services/anomaly_notification_service.dart';
+import 'package:familly_baecon/core/services/fcm_push_service.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/features/splash/presentation/views/splash_screen.dart';
 import 'package:familly_baecon/features/home/presentation/views/home_page.dart';
@@ -18,6 +22,8 @@ Future<void> main() async {
   await applyDefaultOrientationLock();
   await AppBadgeService.initialize();
   runApp(const ProviderScope(child: MyApp()));
+  unawaited(AnomalyNotificationService.initialize());
+  unawaited(FcmPushService.initialize());
 }
 
 class MyApp extends ConsumerWidget {
@@ -44,10 +50,7 @@ class MyApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('fr'),
-        Locale('en'),
-      ],
+      supportedLocales: const [Locale('fr'), Locale('en')],
       // Suit la langue de l'appareil quand elle est supportée, sinon français.
       localeListResolutionCallback: (locales, supported) {
         if (locales != null) {
@@ -108,18 +111,18 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
         maxScaleFactor: 1.0,
         child: NavigationBarTheme(
           data: Theme.of(context).navigationBarTheme.copyWith(
-                labelTextStyle: WidgetStateProperty.resolveWith((states) {
-                  final base = Theme.of(context)
-                          .navigationBarTheme
-                          .labelTextStyle
-                          ?.resolve(states) ??
-                      const TextStyle();
-                  return base.copyWith(
-                    fontSize: 11,
-                    overflow: TextOverflow.ellipsis,
-                  );
-                }),
-              ),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final base =
+                  Theme.of(
+                    context,
+                  ).navigationBarTheme.labelTextStyle?.resolve(states) ??
+                  const TextStyle();
+              return base.copyWith(
+                fontSize: 11,
+                overflow: TextOverflow.ellipsis,
+              );
+            }),
+          ),
           child: NavigationBar(
             selectedIndex: _selectedIndex,
             onDestinationSelected: (index) {
@@ -128,27 +131,27 @@ class _FamilyBeaconAppState extends State<FamilyBeaconApp> {
               });
             },
             destinations: [
-          NavigationDestination(
-            icon: Icon(Icons.home, size: iconSize),
-            label: 'Résumé',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_today, size: iconSize),
-            label: 'Activités',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.warning_amber_rounded, size: iconSize),
-            label: 'Anomalies',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.map_outlined, size: iconSize),
-            label: 'Localisation',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.show_chart, size: iconSize),
-            label: 'Stats',
-          ),
-        ],
+              NavigationDestination(
+                icon: Icon(Icons.home, size: iconSize),
+                label: 'Résumé',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_today, size: iconSize),
+                label: 'Activités',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.warning_amber_rounded, size: iconSize),
+                label: 'Anomalies',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.map_outlined, size: iconSize),
+                label: 'Localisation',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.show_chart, size: iconSize),
+                label: 'Stats',
+              ),
+            ],
           ),
         ),
       ),

@@ -1,13 +1,30 @@
-$ApiHost  = "172.161.26.105"
-$ApkSrc   = "build\app\outputs\flutter-apk\app-release.apk"
-$DriveUrl = "https://drive.google.com/drive/folders/1OG6PfJrU5uzn5HmSd8Emn56Ms5PWFJkg"
+param(
+    [string]$ApiHost = "172.161.26.105",
+    [string]$MqttHost = "",
+    [int]$ApiPort = 8080,
+    [int]$MqttPort = 1883,
+    [string]$ApkName = "FamilyBeacon-demo.apk"
+)
+
+if (-not $MqttHost) {
+    $MqttHost = $ApiHost
+}
+
+$ApiBaseUrl = "http://${ApiHost}:${ApiPort}"
+$ApkSrc     = "build\app\outputs\flutter-apk\app-release.apk"
+$DriveUrl   = "https://drive.google.com/drive/folders/1OG6PfJrU5uzn5HmSd8Emn56Ms5PWFJkg"
+
+Write-Host "Configuration APK :" -ForegroundColor Cyan
+Write-Host "  API  : $ApiBaseUrl"
+Write-Host "  MQTT : ${MqttHost}:${MqttPort}"
+Write-Host ""
 
 # 1. Build
 Write-Host "[1/2] Build APK..." -ForegroundColor Cyan
 flutter build apk --release `
-    --dart-define=FAMILY_BEACON_API_BASE_URL=http://${ApiHost}:8080 `
-    --dart-define=FAMILY_BEACON_MQTT_HOST=$ApiHost `
-    --dart-define=FAMILY_BEACON_MQTT_PORT=1883 `
+    --dart-define=FAMILY_BEACON_API_BASE_URL=$ApiBaseUrl `
+    --dart-define=FAMILY_BEACON_MQTT_HOST=$MqttHost `
+    --dart-define=FAMILY_BEACON_MQTT_PORT=$MqttPort `
     --dart-define=FAMILY_BEACON_MQTT_TOPIC_ALERTS=alerts
 
 if ($LASTEXITCODE -ne 0) { Write-Error "Build echoue"; exit 1 }
@@ -24,7 +41,7 @@ $dest = $drivePaths | Where-Object { Test-Path (Split-Path $_ -Parent) } | Selec
 
 if ($dest) {
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
-    Copy-Item $ApkSrc -Destination "$dest\FamilyBeacon-demo.apk" -Force
+    Copy-Item $ApkSrc -Destination "$dest\$ApkName" -Force
     Write-Host "APK copie dans : $dest" -ForegroundColor Green
 } else {
     Write-Host "Dossier Google Drive non trouve localement." -ForegroundColor Yellow
