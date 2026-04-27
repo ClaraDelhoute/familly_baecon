@@ -6,6 +6,7 @@ import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
+import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_read_provider.dart';
 import 'package:familly_baecon/core/domain/activity_type.dart';
 import 'package:familly_baecon/core/domain/anomaly_type.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
@@ -341,10 +342,14 @@ class HomePage extends ConsumerWidget {
         ? observedFromBackend
         : observed;
     final anomalies = ref.watch(liveAnomaliesProvider).valueOrNull ?? const [];
+    final readIds = ref.watch(anomalyReadProvider);
+    final hasUnreadAnomalies = anomalies.any((a) => !readIds.contains(a.id));
     final hasLatestAnomaly = anomalies.isNotEmpty;
-    final phareStatus = hasLatestAnomaly
-        ? _getPhareStatus(expected, observed)
-        : ActivityStatus.ok;
+    final phareStatus = hasUnreadAnomalies
+        ? ActivityStatus.critical
+        : (hasLatestAnomaly
+            ? _getPhareStatus(expected, observed)
+            : ActivityStatus.ok);
     final phareColor = switch (phareStatus) {
       ActivityStatus.ok => const Color(0xFF10B981),
       ActivityStatus.warning => const Color(0xFFEF4444),
@@ -482,7 +487,7 @@ class HomePage extends ConsumerWidget {
                 PhareMagnifique(
                   expected: expected,
                   observed: observed,
-                  hasActiveAnomaly: hasLatestAnomaly,
+                  hasActiveAnomaly: hasUnreadAnomalies,
                   width: width,
                   height: height,
                   lighthouseSize: lighthouseSize,

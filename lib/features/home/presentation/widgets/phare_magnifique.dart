@@ -61,42 +61,7 @@ class _PhareMagnifiqueState extends State<PhareMagnifique>
     if (!widget.hasActiveAnomaly) {
       return ActivityStatus.ok;
     }
-
-    var worst = ActivityStatus.ok;
-    for (final exp in widget.expected) {
-      Activity? match;
-      for (final obs in widget.observed) {
-        if (obs.room == exp.room && obs.type == exp.type) {
-          match = obs;
-          break;
-        }
-      }
-      if (match == null) {
-        for (final obs in widget.observed) {
-          if (obs.room == exp.room) {
-            match = obs;
-            break;
-          }
-        }
-      }
-      if (match == null) {
-        for (final obs in widget.observed) {
-          if (obs.type == exp.type) {
-            match = obs;
-            break;
-          }
-        }
-      }
-
-      final status = _statusFor(exp, match);
-      if (status == ActivityStatus.critical) {
-        return ActivityStatus.critical;
-      }
-      if (status == ActivityStatus.warning) {
-        worst = ActivityStatus.warning;
-      }
-    }
-    return worst;
+    return ActivityStatus.critical;
   }
 
   ActivityStatus _statusFor(Activity exp, Activity? obs) {

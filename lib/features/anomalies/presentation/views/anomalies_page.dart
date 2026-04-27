@@ -24,10 +24,21 @@ class AnomaliesPage extends ConsumerWidget {
       ...(anomaliesAsync.valueOrNull ?? const <AnomalyHistoryModel>[]),
     ]..sort((a, b) => b.simulatedAt.compareTo(a.simulatedAt));
 
+    final hasUnread = anomalies.any((a) => !readIds.contains(a.id));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Anomalies'),
         actions: [
+          if (hasUnread)
+            TextButton(
+              onPressed: () {
+                ref
+                    .read(anomalyReadProvider.notifier)
+                    .markAllRead(anomalies.map((a) => a.id).toList());
+              },
+              child: const Text('Tout marquer lu'),
+            ),
           IconButton(
             tooltip: 'Paramètres',
             onPressed: () {

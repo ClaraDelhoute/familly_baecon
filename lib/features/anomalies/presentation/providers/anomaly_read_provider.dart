@@ -22,6 +22,14 @@ class AnomalyReadNotifier extends StateNotifier<Set<int>> {
   }
 
   bool isRead(int id) => state.contains(id);
+
+  Future<void> markAllRead(List<int> ids) async {
+    final updated = {...state, ...ids};
+    if (updated.length == state.length) return;
+    state = updated;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_key, state.map((e) => '$e').toList());
+  }
 }
 
 final anomalyReadProvider =
