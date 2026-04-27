@@ -458,7 +458,7 @@ class HomePage extends ConsumerWidget {
                 _InfoTile(
                   icon: Icons.history_rounded,
                   iconColor: AppTheme.accentBlue,
-                  label: 'Dernière sortie',
+                  label: 'Dernière activité',
                   value: _formatLastActivityValue(lastActivityOfLatestDay),
                 ),
                 Divider(
