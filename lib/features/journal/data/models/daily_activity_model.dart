@@ -58,9 +58,7 @@ class DailyActivityModel {
     final minute = int.tryParse(parts[1]);
     final second = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
     if (hour == null || minute == null) return null;
-    // Le backend envoie date + time en UTC → construire en UTC pour que
-    // toLocal() / _toFranceTime() donnent l'heure correcte affichée.
-    return DateTime.utc(date.year, date.month, date.day, hour, minute, second);
+    return DateTime(date.year, date.month, date.day, hour, minute, second);
   }
 
   static int? _durationMin(DateTime start, DateTime? end) {

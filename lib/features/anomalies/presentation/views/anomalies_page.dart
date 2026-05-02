@@ -171,7 +171,7 @@ class _AnomaliesListState extends ConsumerState<_AnomaliesList> {
   ) {
     final map = <DateTime, List<AnomalyHistoryModel>>{};
     for (final item in items) {
-      final local = item.simulatedAt.toLocal();
+      final local = item.simulatedAt;
       final day = DateTime(local.year, local.month, local.day);
       map.putIfAbsent(day, () => []).add(item);
     }
@@ -377,7 +377,7 @@ String _whenLabel(DateTime local) {
 }
 
 String _activityWhenLabel(AnomalyHistoryModel anomaly) {
-  return _whenLabel(anomaly.simulatedAt.toLocal());
+  return _whenLabel(anomaly.simulatedAt);
 }
 
 String _dayLabel(DateTime day) {
@@ -402,7 +402,7 @@ bool _isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
 DateTime _todayFrance() {
-  final n = DateTime.now().toLocal();
+  final n = DateTime.now();
   return DateTime(n.year, n.month, n.day);
 }
 

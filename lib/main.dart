@@ -121,8 +121,7 @@ class _FamilyBeaconAppState extends ConsumerState<FamilyBeaconApp> {
   }
 
   String _fmt(DateTime dt) {
-    final local = dt.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}h${local.minute.toString().padLeft(2, '0')}';
+    return '${dt.hour.toString().padLeft(2, '0')}h${dt.minute.toString().padLeft(2, '0')}';
   }
 
   String _expectedFromRoutine(List<RoutineActivityModel> routine, AnomalyHistoryModel anomaly) {

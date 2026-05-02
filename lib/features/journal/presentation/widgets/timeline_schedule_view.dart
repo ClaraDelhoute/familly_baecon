@@ -153,8 +153,7 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
   }
 
   int _minutesFromDateTime(DateTime dateTime) {
-    final local = dateTime.toLocal();
-    return _getMinutesFromMidnight(local.hour, local.minute);
+    return _getMinutesFromMidnight(dateTime.hour, dateTime.minute);
   }
 
   double _getTopPosition(int hour, int minute) {
