@@ -562,8 +562,8 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
               );
             }),
           ),
-          // Activités positionnées
-          ...activities.map((activity) {
+          // Activités positionnées (traverse-minuit → 2 barres)
+          ...activities.expand((activity) {
             final startHour = activity['startHour'] as int;
             final startMin = activity['startMin'] as int;
             final endHour = activity['endHour'] as int;
@@ -571,23 +571,56 @@ class _TimelineScheduleViewState extends State<TimelineScheduleView> {
             final label = activity['label'] as String;
             final icon = activity['icon'] as String;
 
-            final topPos = _getTopPosition(startHour, startMin);
-            final height = _getHeight(startHour, startMin, endHour, endMin);
+            final startTotal = _getMinutesFromMidnight(startHour, startMin);
+            final endTotal = _getMinutesFromMidnight(endHour, endMin);
+            final crossesMidnight = endTotal < startTotal;
 
-            return Positioned(
-              top: topPos,
-              left: 4,
-              right: 4,
-              height: height.clamp(_minCardHeight, double.infinity),
-              child: _buildTimelineActivityCard(
-                label: label,
-                icon: icon,
-                startHour: startHour,
-                startMin: startMin,
-                endHour: endHour,
-                endMin: endMin,
+            if (!crossesMidnight) {
+              final topPos = _getTopPosition(startHour, startMin);
+              final height = _getHeight(startHour, startMin, endHour, endMin);
+              return [Positioned(
+                top: topPos,
+                left: 4,
+                right: 4,
+                height: height.clamp(_minCardHeight, double.infinity),
+                child: _buildTimelineActivityCard(
+                  label: label, icon: icon,
+                  startHour: startHour, startMin: startMin,
+                  endHour: endHour, endMin: endMin,
+                ),
+              )];
+            }
+
+            // Segment soir : startHour→23h59
+            final topPos1 = _getTopPosition(startHour, startMin);
+            final height1 = _getHeight(startHour, startMin, 23, 59);
+            // Segment matin : 00h00→endHour
+            final height2 = _getHeight(0, 0, endHour, endMin);
+
+            return [
+              Positioned(
+                top: topPos1,
+                left: 4,
+                right: 4,
+                height: height1.clamp(_minCardHeight, double.infinity),
+                child: _buildTimelineActivityCard(
+                  label: label, icon: icon,
+                  startHour: startHour, startMin: startMin,
+                  endHour: 23, endMin: 59,
+                ),
               ),
-            );
+              Positioned(
+                top: 0,
+                left: 4,
+                right: 4,
+                height: height2.clamp(_minCardHeight, double.infinity),
+                child: _buildTimelineActivityCard(
+                  label: label, icon: icon,
+                  startHour: 0, startMin: 0,
+                  endHour: endHour, endMin: endMin,
+                ),
+              ),
+            ];
           }),
         ],
       ),
