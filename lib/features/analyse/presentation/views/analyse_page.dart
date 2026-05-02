@@ -99,10 +99,10 @@ class AnalysePage extends ConsumerWidget {
 Widget _buildStatsContent(StatsSummaryModel stats, _Period period) {
   final isDay = period == _Period.day;
   final sleepMinutes = isDay ? stats.sleepMinutes : stats.avgSleepMinutes;
-  final sleepH = sleepMinutes / 60;
-  final sleepLabel = isDay
-      ? '${sleepH.toStringAsFixed(1)}h'
-      : '${sleepH.toStringAsFixed(1)}h moy.';
+  final sleepH = sleepMinutes ~/ 60;
+  final sleepM = sleepMinutes % 60;
+  final sleepFmt = sleepM == 0 ? '${sleepH}h' : '${sleepH}h${sleepM.toString().padLeft(2, '0')}';
+  final sleepLabel = isDay ? sleepFmt : '$sleepFmt moy.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -195,7 +195,11 @@ String _minuteToLabel(num? minutes) {
 
 String _durationLabel(int? minutes) {
   if (minutes == null) return '--';
-  if (minutes >= 60) return '${(minutes / 60).toStringAsFixed(1)}h';
+  if (minutes >= 60) {
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return m == 0 ? '${h}h' : '${h}h${m.toString().padLeft(2, '0')}';
+  }
   return '${minutes}min';
 }
 

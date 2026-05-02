@@ -5,29 +5,30 @@ enum TestMode { real, ok, warning, critical }
 
 final testModeProvider = StateProvider<TestMode>((ref) => TestMode.real);
 
-class _LastPopupAlertNotifier extends StateNotifier<String?> {
-  static const _key = 'last_popup_alert_id';
+class _LastPopupAnomalyNotifier extends StateNotifier<int?> {
+  static const _key = 'last_popup_anomaly_id';
 
-  _LastPopupAlertNotifier() : super(null) {
+  _LastPopupAnomalyNotifier() : super(null) {
     _load();
   }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    state = prefs.getString(_key);
+    final v = prefs.getInt(_key);
+    state = v;
   }
 
   @override
-  set state(String? value) {
+  set state(int? value) {
     super.state = value;
     if (value != null) {
       SharedPreferences.getInstance()
-          .then((p) => p.setString(_key, value));
+          .then((p) => p.setInt(_key, value));
     }
   }
 }
 
-final lastPopupAlertIdProvider =
-    StateNotifierProvider<_LastPopupAlertNotifier, String?>(
-  (_) => _LastPopupAlertNotifier(),
+final lastPopupAnomalyIdProvider =
+    StateNotifierProvider<_LastPopupAnomalyNotifier, int?>(
+  (_) => _LastPopupAnomalyNotifier(),
 );

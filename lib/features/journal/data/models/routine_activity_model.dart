@@ -3,6 +3,7 @@ class RoutineActivityModel {
   final String sensorType;
   final double? startMin;
   final double? durationMin;
+  final double? bedtimeMin;
   final double frequency;
   final int? sampleCount;
 
@@ -11,6 +12,7 @@ class RoutineActivityModel {
     required this.sensorType,
     this.startMin,
     this.durationMin,
+    this.bedtimeMin,
     required this.frequency,
     this.sampleCount,
   });
@@ -28,6 +30,7 @@ class RoutineActivityModel {
       sensorType: (json['sensor_type'] as String? ?? '').trim(),
       startMin: double.tryParse(parts['s'] ?? ''),
       durationMin: double.tryParse(parts['d'] ?? ''),
+      bedtimeMin: double.tryParse(parts['bedtime'] ?? ''),
       frequency: double.tryParse(parts['freq'] ?? '') ?? 0,
       sampleCount: int.tryParse(parts['count'] ?? ''),
     );
@@ -41,6 +44,23 @@ class RoutineActivityModel {
     if (startMin == null) return '';
     final h = (startMin! ~/ 60) % 24;
     final m = (startMin! % 60).round();
+    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
+  }
+
+  /// Heure de fin habituelle = startMin + durationMin (réveil pour sleep = 0+363=6h03)
+  String get endLabel {
+    if (startMin == null) return '';
+    final endMin = (startMin! + (durationMin ?? 0)) % (24 * 60);
+    final h = (endMin ~/ 60) % 24;
+    final m = (endMin % 60).round();
+    return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
+  }
+
+  /// Heure de coucher habituelle (sleep uniquement)
+  String get bedtimeLabel {
+    if (bedtimeMin == null) return '';
+    final h = (bedtimeMin! ~/ 60) % 24;
+    final m = (bedtimeMin! % 60).round();
     return '${h.toString().padLeft(2, '0')}h${m.toString().padLeft(2, '0')}';
   }
 

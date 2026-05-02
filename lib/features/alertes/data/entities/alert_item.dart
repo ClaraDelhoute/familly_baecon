@@ -5,6 +5,10 @@ class AlertItem {
   final String severity;
   final String anomalyType;
   final DateTime timestamp;
+  final DateTime? simulatedAt;
+  final String? sensorType;
+  final int? activityId;
+  final int? routineId;
 
   const AlertItem({
     required this.id,
@@ -13,6 +17,10 @@ class AlertItem {
     required this.severity,
     required this.anomalyType,
     required this.timestamp,
+    this.simulatedAt,
+    this.sensorType,
+    this.activityId,
+    this.routineId,
   });
 
   bool get isHighSeverity => severity.toLowerCase() == 'high';

@@ -269,7 +269,7 @@ class _RoutineTab extends ConsumerWidget {
       ),
       data: (items) {
         final routineItems = items
-            .where((r) => r.isActivityProfile && r.frequency > 0)
+            .where((r) => r.frequency > 0 && r.startMin != null)
             .toList()
           ..sort((a, b) => (a.startMin ?? 0).compareTo(b.startMin ?? 0));
 
@@ -327,7 +327,7 @@ class _RoutineTab extends ConsumerWidget {
     return Activity(
       id: 'routine-${activity.sensorType}-${activity.room}-$startMinute',
       deviceId: 'routine',
-      type: activity.room,
+      type: activity.sensorType,
       room: activity.room,
       startAt: startAt,
       endAt: endAt,

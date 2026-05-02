@@ -111,7 +111,7 @@ extension AnomalyTypeX on AnomalyType {
 
   String phraseFor(String? activity) {
     final a = activity ?? "l'activité";
-    return switch (this) {
+    final raw = switch (this) {
       AnomalyType.missing => '$a n\'a pas été détecté${_eAccord(a)}.',
       AnomalyType.timing => '$a a eu lieu à un horaire inhabituel.',
       AnomalyType.durationLong => '$a a duré plus longtemps que d\'habitude.',
@@ -120,6 +120,8 @@ extension AnomalyTypeX on AnomalyType {
       AnomalyType.freqLow => '$a a été observé${_eAccord(a)} moins souvent que d\'habitude.',
       AnomalyType.unknown => 'Un comportement inhabituel lié à $a a été détecté.',
     };
+    if (raw.isEmpty) return raw;
+    return '${raw[0].toUpperCase()}${raw.substring(1)}';
   }
 }
 

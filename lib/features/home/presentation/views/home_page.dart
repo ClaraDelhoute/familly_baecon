@@ -2,13 +2,11 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:familly_baecon/features/alertes/data/entities/alert_item.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/journal_providers.dart';
 import 'package:familly_baecon/features/journal/presentation/providers/backend_providers.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_focus_provider.dart';
 import 'package:familly_baecon/features/anomalies/presentation/providers/anomaly_read_provider.dart';
 import 'package:familly_baecon/core/domain/activity_type.dart';
-import 'package:familly_baecon/core/domain/anomaly_type.dart';
 import 'package:familly_baecon/core/theme/app_theme.dart';
 import 'package:familly_baecon/core/providers/profile_image_provider.dart';
 import 'package:familly_baecon/core/providers/watched_person_provider.dart';
@@ -315,21 +313,6 @@ class HomePage extends ConsumerWidget {
     final observedFromBackend =
         ref.watch(liveObservedActivitiesProvider).valueOrNull ??
         const <Activity>[];
-    ref.watch(liveAlertsProvider);
-
-    ref.listen(liveAlertsProvider, (previous, next) {
-      final alerts = next.valueOrNull;
-      if (alerts == null || alerts.isEmpty) return;
-      final latest = alerts.first;
-      final lastShown = ref.read(lastPopupAlertIdProvider);
-      if (latest.id == lastShown) return;
-      ref.read(lastPopupAlertIdProvider.notifier).state = latest.id;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        _showRealtimeAlertDialog(context, ref, latest, expected, observed);
-      });
-    });
-
     final sensorEvents =
         ref.watch(liveSensorEventsProvider).valueOrNull ?? const [];
     final latestSensorEvent = sensorEvents.isEmpty
@@ -657,7 +640,9 @@ class HomePage extends ConsumerWidget {
     List<Activity> observed,
   ) {
     const expectedMeals = 3;
-    final sleepHours = (sleepMinutes / 60).toStringAsFixed(1);
+    final sleepH = sleepMinutes ~/ 60;
+    final sleepM = sleepMinutes % 60;
+    final sleepLabel = sleepM == 0 ? '${sleepH}h' : '${sleepH}h${sleepM.toString().padLeft(2, '0')}';
     final latestOther = observed.isEmpty
         ? null
         : observed
@@ -674,7 +659,7 @@ class HomePage extends ConsumerWidget {
               );
     final latestOtherTime = latestOther == null
         ? 'N/A'
-        : '${latestOther.startAt.hour.toString().padLeft(2, '0')}:${latestOther.startAt.minute.toString().padLeft(2, '0')}';
+        : '${latestOther.startAt.hour.toString().padLeft(2, '0')}h${latestOther.startAt.minute.toString().padLeft(2, '0')}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -689,7 +674,7 @@ class HomePage extends ConsumerWidget {
         const SizedBox(width: 10),
         _StatCard(
           label: 'Sommeil',
-          value: '${sleepHours}h',
+          value: sleepLabel,
           icon: Icons.bedtime,
           color: AppTheme.activityGreen,
           flex: 1,
@@ -710,7 +695,9 @@ class HomePage extends ConsumerWidget {
   Widget _buildDailySummaryStats(List<Activity> observed) {
     final dayStats = BehaviorStatsService.summarizeLatestDay(observed);
     const expectedMeals = 3;
-    final sleepHours = (dayStats.sleepMinutes / 60).toStringAsFixed(1);
+    final sleepH2 = dayStats.sleepMinutes ~/ 60;
+    final sleepM2 = dayStats.sleepMinutes % 60;
+    final sleepLabel2 = sleepM2 == 0 ? '${sleepH2}h' : '${sleepH2}h${sleepM2.toString().padLeft(2, '0')}';
     final latestOther = observed.isEmpty
         ? null
         : observed
@@ -727,7 +714,7 @@ class HomePage extends ConsumerWidget {
               );
     final latestOtherTime = latestOther == null
         ? 'N/A'
-        : '${latestOther.startAt.hour.toString().padLeft(2, '0')}:${latestOther.startAt.minute.toString().padLeft(2, '0')}';
+        : '${latestOther.startAt.hour.toString().padLeft(2, '0')}h${latestOther.startAt.minute.toString().padLeft(2, '0')}';
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -742,7 +729,7 @@ class HomePage extends ConsumerWidget {
         const SizedBox(width: 10),
         _StatCard(
           label: 'Sommeil',
-          value: '${sleepHours}h',
+          value: sleepLabel2,
           icon: Icons.bedtime,
           color: AppTheme.activityGreen,
           flex: 1,
@@ -802,242 +789,6 @@ class HomePage extends ConsumerWidget {
     return worst;
   }
 
-  void _showRealtimeAlertDialog(
-    BuildContext context,
-    WidgetRef ref,
-    AlertItem alert,
-    List<Activity> expected,
-    List<Activity> observed,
-  ) {
-    final accentColor = AppTheme.activityRed;
-    final textTheme = Theme.of(context).textTheme;
-    final typeLabel = _anomalyLabel(alert.anomalyType);
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.6),
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 24,
-          ),
-          child: LayoutBuilder(
-            builder: (ctx, constraints) {
-              final maxW = constraints.maxWidth.clamp(0, 420).toDouble();
-              return ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxW),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: context.palette.surface,
-                    borderRadius: BorderRadius.circular(28),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accentColor.withValues(alpha: 0.18),
-                        blurRadius: 32,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                accentColor,
-                                accentColor.withValues(alpha: 0.78),
-                              ],
-                            ),
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(28),
-                            ),
-                          ),
-                          padding: const EdgeInsets.fromLTRB(22, 26, 22, 24),
-                          child: Text(
-                            typeLabel,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize:
-                                  (textTheme.headlineSmall?.fontSize ?? 24) +
-                                  2,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
-                            ),
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _humanizeAlertDescription(alert),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: context.palette.textPrimary,
-                                  fontSize:
-                                      textTheme.bodyMedium?.fontSize ?? 14,
-                                  height: 1.45,
-                                ),
-                              ),
-                              if (_extractAlertMetrics(alert) != null) ...[
-                                const SizedBox(height: 10),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: accentColor.withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(999),
-                                  ),
-                                  child: Text(
-                                    _extractAlertMetrics(alert)!,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: accentColor,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.2,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 16),
-                              SizedBox(
-                                height: 190,
-                                child: PhareMagnifique(
-                                  expected: expected,
-                                  observed: observed,
-                                  alertSeverity: alert.severity,
-                                  forceGyrophare: true,
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () async {
-                                    Navigator.pop(dialogContext);
-                                    final anomalies = await ref.read(
-                                      liveAnomaliesProvider.future,
-                                    );
-                                    if (!context.mounted) return;
-                                    final latestId = anomalies.isNotEmpty
-                                        ? anomalies.first.id
-                                        : null;
-                                    if (latestId != null) {
-                                      ref
-                                              .read(
-                                                focusedAnomalyIdProvider
-                                                    .notifier,
-                                              )
-                                              .state =
-                                          latestId;
-                                    }
-                                    onNavigate?.call(2);
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: accentColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 14,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: const Text(
-                                    "Voir l'anomalie",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  String _anomalyLabel(String anomalyType) =>
-      AnomalyType.fromKey(anomalyType).label;
-
-  String _humanizeAlertDescription(AlertItem alert) {
-    final activity = _extractActivityName(alert);
-    return _phraseFor(alert.anomalyType, activity);
-  }
-
-  /// Extrait les valeurs techniques (ratio, score…) du message brut
-  /// backend, sous forme courte et lisible. Renvoie null si rien d'utile.
-  String? _extractAlertMetrics(AlertItem alert) {
-    final raw = alert.description;
-    final paren = RegExp(r'\(([^)]+)\)').firstMatch(raw)?.group(1)?.trim();
-    if (paren == null || paren.isEmpty) return null;
-    // ratio: 2.3 vs normal: 1.0  ->  2.3× la durée habituelle
-    final ratioVs = RegExp(
-      r'ratio\s*[:=]\s*([\d.]+)\s*vs\s*normal\s*[:=]\s*([\d.]+)',
-      caseSensitive: false,
-    ).firstMatch(paren);
-    if (ratioVs != null) {
-      final r = double.tryParse(ratioVs.group(1) ?? '');
-      if (r != null) {
-        final pct = ((r - 1) * 100).round();
-        if (r > 1) return '+$pct % par rapport à la moyenne';
-        if (r < 1) return '$pct % par rapport à la moyenne';
-      }
-    }
-    // score de similarité temporelle: 0.12  ->  Similarité 12 %
-    final score = RegExp(
-      r'(?:score\s+de\s+)?similarit[ée][^:=]*[:=]\s*([\d.]+)',
-      caseSensitive: false,
-    ).firstMatch(paren);
-    if (score != null) {
-      final s = double.tryParse(score.group(1) ?? '');
-      if (s != null) return 'Similarité ${(s * 100).round()} %';
-    }
-    // ratio simple
-    final ratio = RegExp(
-      r'ratio\s*[:=]\s*([\d.]+)',
-      caseSensitive: false,
-    ).firstMatch(paren);
-    if (ratio != null) {
-      final r = double.tryParse(ratio.group(1) ?? '');
-      if (r != null) return 'Ratio ${r.toStringAsFixed(1)}×';
-    }
-    return paren;
-  }
-
-  String? _extractActivityName(AlertItem alert) {
-    final source = '${alert.description} ${alert.title}'.toLowerCase();
-    final t = ActivityType.fromTypeContains(source);
-    return t == ActivityType.unknown ? null : t.subject;
-  }
-
-  String _phraseFor(String anomalyType, String? activity) =>
-      AnomalyType.fromKey(anomalyType).phraseFor(activity);
-
   /// Calculer le statut d'une activité
   ActivityStatus _statusFor(Activity exp, Activity? obs) {
     if (obs == null) return ActivityStatus.warning;
@@ -1065,14 +816,14 @@ class HomePage extends ConsumerWidget {
     if (activity == null) return '—';
     final local = activity.startAt.toLocal();
     final time =
-        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+        '${local.hour.toString().padLeft(2, '0')}h${local.minute.toString().padLeft(2, '0')}';
     return '${activityTypeLabel(activity.type)} • $time';
   }
 
   String _formatLatestLocationValue(SensorEventModel? event) {
     if (event == null) return 'Inconnue';
     final time =
-        '${event.timestamp.toLocal().hour.toString().padLeft(2, '0')}:${event.timestamp.toLocal().minute.toString().padLeft(2, '0')}';
+        '${event.timestamp.toLocal().hour.toString().padLeft(2, '0')}h${event.timestamp.toLocal().minute.toString().padLeft(2, '0')}';
     return '${roomLabel(event.room)} • $time';
   }
 }

@@ -31,7 +31,11 @@ class DailyActivityModel {
 
   Activity toDomain({required DateTime fallbackDate}) {
     final startAt = _combineDateAndTime(date, startTime) ?? fallbackDate;
-    final endAt = _combineDateAndTime(date, endTime);
+    var endAt = _combineDateAndTime(date, endTime);
+    // Traverse-minuit : end < start → end est le lendemain
+    if (endAt != null && endAt.isBefore(startAt)) {
+      endAt = endAt.add(const Duration(days: 1));
+    }
 
     return Activity(
       id: 'daily_$id',
@@ -54,15 +58,15 @@ class DailyActivityModel {
     final minute = int.tryParse(parts[1]);
     final second = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
     if (hour == null || minute == null) return null;
-    // Le backend envoie date + time en heure locale du serveur (pas UTC),
-    // donc on construit directement un DateTime local sans conversion.
-    final localDate = date.toLocal();
-    return DateTime(localDate.year, localDate.month, localDate.day, hour, minute, second);
+    // Le backend envoie date + time en UTC → construire en UTC pour que
+    // toLocal() / _toFranceTime() donnent l'heure correcte affichée.
+    return DateTime.utc(date.year, date.month, date.day, hour, minute, second);
   }
 
   static int? _durationMin(DateTime start, DateTime? end) {
-    if (end == null || end.isBefore(start)) return null;
-    return end.difference(start).inMinutes;
+    if (end == null) return null;
+    final diff = end.difference(start).inMinutes;
+    return diff > 0 ? diff : null;
   }
 
   static String _activityToRoom(String activity) {

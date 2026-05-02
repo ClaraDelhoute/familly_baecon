@@ -23,16 +23,28 @@ class AnomalyDetailPage extends ConsumerWidget {
     final textTheme = Theme.of(context).textTheme;
     final isHigh = anomaly.severity == 'high';
     final accent = isHigh ? AppTheme.activityRed : AppTheme.accentBlue;
-    final activityTime = _toFranceTime(anomaly.simulatedAt);
-    final notifTime = _toFranceTime(anomaly.lastSeenAt);
+    final activityTime = _toLocal(anomaly.simulatedAt);
+    final notifTime = _toLocal(anomaly.lastSeenAt);
     final name = ref.watch(watchedPersonNameProvider);
     final title = _prettyTitle(anomaly, name);
 
     // Heure habituelle depuis la routine
     final routine = ref.watch(liveRoutineProvider).valueOrNull ?? const [];
     final routineEntry = _matchRoutine(routine, anomaly.activityKey);
-    final usualTimeLabel = routineEntry?.startLabel;
+    // sleep : toujours montrer l'heure de réveil habituelle (startMin + duration)
+    // timing/duration_* autres activités : heure de fin habituelle
+    // missing : heure de début habituelle
+    final _showEndLabel = anomaly.activityKey == 'sleep' ||
+        anomaly.anomalyType == 'timing' ||
+        anomaly.anomalyType == 'duration_long' ||
+        anomaly.anomalyType == 'duration_short';
+    final usualTimeLabel = _showEndLabel
+        ? routineEntry?.endLabel
+        : routineEntry?.startLabel;
     final usualDurationLabel = routineEntry?.durationLabel;
+    final bedtimeLabel = anomaly.activityKey == 'sleep'
+        ? routineEntry?.bedtimeLabel
+        : null;
 
     // Heure détectée depuis simulatedAt (fiable)
     final detectedTimeLabel = anomaly.anomalyType != 'missing'
@@ -93,6 +105,7 @@ class AnomalyDetailPage extends ConsumerWidget {
             detectedTimeLabel: detectedTimeLabel,
             usualTimeLabel: usualTimeLabel,
             usualDurationLabel: usualDurationLabel,
+            bedtimeLabel: bedtimeLabel,
           ),
         ],
       ),
@@ -171,6 +184,7 @@ class _AlertExplanationCard extends StatelessWidget {
   final String? detectedTimeLabel;
   final String? usualTimeLabel;
   final String? usualDurationLabel;
+  final String? bedtimeLabel;
 
   const _AlertExplanationCard({
     required this.anomaly,
@@ -179,6 +193,7 @@ class _AlertExplanationCard extends StatelessWidget {
     this.detectedTimeLabel,
     this.usualTimeLabel,
     this.usualDurationLabel,
+    this.bedtimeLabel,
   });
 
   @override
@@ -189,13 +204,13 @@ class _AlertExplanationCard extends StatelessWidget {
       rows.add((Icons.not_interested_rounded, 'Activité absente ce jour'));
     } else {
       if (detectedTimeLabel != null) {
-        rows.add((Icons.schedule_rounded, 'Heure détectée : $detectedTimeLabel'));
+        rows.add((Icons.schedule_rounded, 'Réveil détecté : $detectedTimeLabel'));
       }
       if (usualTimeLabel != null && usualTimeLabel!.isNotEmpty) {
-        rows.add((Icons.history_rounded, 'Heure habituelle : $usualTimeLabel'));
-      }
-      if (usualDurationLabel != null && usualDurationLabel!.isNotEmpty) {
-        rows.add((Icons.timelapse_rounded, 'Durée habituelle : $usualDurationLabel'));
+        final timeLabel = anomaly.anomalyType == 'timing'
+            ? 'Réveil habituel : $usualTimeLabel'
+            : 'Réveil habituel : $usualTimeLabel';
+        rows.add((Icons.history_rounded, timeLabel));
       }
     }
 
@@ -299,11 +314,6 @@ RoutineActivityModel? _matchRoutine(
 ) {
   // Correspondance activityKey → sensorType attendu dans la routine
   final targetSensor = switch (activityKey) {
-    'sleep'          => 'sleep',
-    'petit-déjeuner' => 'petit-dejeuner',
-    'déjeuner'       => 'dejeuner',
-    'souper'         => 'souper',
-    'outside'        => 'outside',
     'daily_activity' => 'activity_profile',
     _                => activityKey,
   };
@@ -313,12 +323,16 @@ RoutineActivityModel? _matchRoutine(
       (r) => r.sensorType.toLowerCase() == targetSensor.toLowerCase(),
     );
   } catch (_) {
-    // Tentative avec correspondance partielle
+    // Correspondance partielle stricte : les deux tokens doivent se contenir mutuellement
+    // sans confusion petit-dejeuner ↔ dejeuner
+    final target = targetSensor.toLowerCase();
     try {
-      return routine.firstWhere(
-        (r) => r.sensorType.toLowerCase().contains(targetSensor.toLowerCase()) ||
-               targetSensor.toLowerCase().contains(r.sensorType.toLowerCase()),
-      );
+      return routine.firstWhere((r) {
+        final s = r.sensorType.toLowerCase();
+        // Évite que 'petit-dejeuner'.contains('dejeuner') matche l'entrée déjeuner
+        if (target.contains('petit') != s.contains('petit')) return false;
+        return s.contains(target) || target.contains(s);
+      });
     } catch (_) {
       return null;
     }
@@ -531,26 +545,10 @@ String _relativeDay(DateTime dt) {
 bool _isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
 
+DateTime _toLocal(DateTime dt) => dt.toLocal();
+
 DateTime _todayFrance() {
-  final n = _toFranceTime(DateTime.now().toUtc());
+  final n = _toLocal(DateTime.now());
   return DateTime(n.year, n.month, n.day);
 }
 
-DateTime _toFranceTime(DateTime date) {
-  final utc = date.toUtc();
-  return utc.add(Duration(hours: _isFranceDst(utc) ? 2 : 1));
-}
-
-bool _isFranceDst(DateTime utc) {
-  final start = _lastSundayUtc(utc.year, 3).add(const Duration(hours: 1));
-  final end = _lastSundayUtc(utc.year, 10).add(const Duration(hours: 1));
-  return utc.isAfter(start) && utc.isBefore(end);
-}
-
-DateTime _lastSundayUtc(int year, int month) {
-  final firstNextMonth = month == 12
-      ? DateTime.utc(year + 1, 1, 1)
-      : DateTime.utc(year, month + 1, 1);
-  final lastDayOfMonth = firstNextMonth.subtract(const Duration(days: 1));
-  return lastDayOfMonth.subtract(Duration(days: lastDayOfMonth.weekday % 7));
-}
