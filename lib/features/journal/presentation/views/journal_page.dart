@@ -183,7 +183,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
       return DateTime(now.year, now.month, now.day);
     }
     final latest = observed
-        .map((a) => (a.endAt ?? a.startAt).toLocal())
+        .map((a) => a.endAt ?? a.startAt)
         .reduce((a, b) => a.isAfter(b) ? a : b);
     return DateTime(latest.year, latest.month, latest.day);
   }
@@ -192,12 +192,11 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     List<Activity> activities,
     DateTime day,
   ) {
-    final dayLocal = day.toLocal();
     return activities.where((activity) {
-      final d = activity.startAt.toLocal();
-      return d.year == dayLocal.year &&
-          d.month == dayLocal.month &&
-          d.day == dayLocal.day;
+      final d = activity.startAt;
+      return d.year == day.year &&
+          d.month == day.month &&
+          d.day == day.day;
     }).toList();
   }
 
@@ -237,11 +236,7 @@ class _JournalPageState extends ConsumerState<JournalPage> {
     return '$day/$month/$year';
   }
 
-  Activity _toLocalActivity(Activity activity) {
-    final startLocal = activity.startAt.toLocal();
-    final endLocal = activity.endAt?.toLocal();
-    return activity.copyWith(startAt: startLocal, endAt: endLocal);
-  }
+  Activity _toLocalActivity(Activity activity) => activity;
 }
 
 class _RoutineTab extends ConsumerWidget {

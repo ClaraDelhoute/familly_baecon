@@ -345,16 +345,14 @@ class HomePage extends ConsumerWidget {
         : observedForLastActivity.reduce(
             (a, b) => a.startAt.isAfter(b.startAt) ? a : b,
           );
-    final latestDay = lastActivity == null
-        ? null
-        : lastActivity.startAt.toLocal();
+    final latestDay = lastActivity?.startAt;
     final latestDayStart = latestDay == null
         ? null
         : DateTime(latestDay.year, latestDay.month, latestDay.day);
     final latestDayActivities = latestDayStart == null
         ? <Activity>[]
         : observedForLastActivity.where((a) {
-            final d = a.startAt.toLocal();
+            final d = a.startAt;
             return d.year == latestDayStart.year &&
                 d.month == latestDayStart.month &&
                 d.day == latestDayStart.day;
@@ -814,16 +812,17 @@ class HomePage extends ConsumerWidget {
 
   String _formatLastActivityValue(Activity? activity) {
     if (activity == null) return '—';
-    final local = activity.startAt.toLocal();
+    final t = activity.startAt;
     final time =
-        '${local.hour.toString().padLeft(2, '0')}h${local.minute.toString().padLeft(2, '0')}';
+        '${t.hour.toString().padLeft(2, '0')}h${t.minute.toString().padLeft(2, '0')}';
     return '${activityTypeLabel(activity.type)} • $time';
   }
 
   String _formatLatestLocationValue(SensorEventModel? event) {
     if (event == null) return 'Inconnue';
+    final t = event.timestamp;
     final time =
-        '${event.timestamp.toLocal().hour.toString().padLeft(2, '0')}h${event.timestamp.toLocal().minute.toString().padLeft(2, '0')}';
+        '${t.hour.toString().padLeft(2, '0')}h${t.minute.toString().padLeft(2, '0')}';
     return '${roomLabel(event.room)} • $time';
   }
 }

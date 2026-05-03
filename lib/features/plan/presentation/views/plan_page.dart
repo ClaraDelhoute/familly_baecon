@@ -91,8 +91,7 @@ class PlanPage extends ConsumerWidget {
   }
 
   String _formatHm(DateTime date) {
-    final d = date.toLocal();
-    return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   Widget _legend(BuildContext context, Color color, String label) {
